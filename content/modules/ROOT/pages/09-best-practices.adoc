@@ -176,7 +176,9 @@ IMPORTANT: Git リポジトリには以下を含めないでください:
 
 秘匿情報は Kubernetes Secret、External Secrets Operator、または RHDP deployer で管理します。
 
-=== バージョン固定
+=== バージョン管理
+
+==== バージョン固定
 
 ハンズオンの安定性のため、以下を固定します:
 
@@ -192,6 +194,30 @@ IMPORTANT: Git リポジトリには以下を含めないでください:
 
 | Showroom UI テーマ
 | `site.yml` の `ui.bundle.url` でリリースタグを固定
+|===
+
+==== バージョン確認の参照先
+
+NOTE: FSC テンプレートの Showroom バージョンが最新かどうかは、https://github.com/rhpds/showroom-deployer[showroom-deployer^] と照合してください。
+
+[source,bash]
+----
+gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/values.yaml --jq '.content' | base64 -d | grep "image:"
+----
+
+==== Showroom コンテンツリポジトリの Visibility
+
+[cols="1,1,2",options="header"]
+|===
+| リポジトリ | Visibility | 理由
+
+| コンテンツ（Showroom）
+| **public 必須**
+| Showroom の git-cloner が認証なしで clone するため
+
+| 環境定義（Helm）
+| private 可
+| RHDP オーダー時に PAT で認証
 |===
 
 === コストとライフサイクル

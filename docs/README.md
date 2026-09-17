@@ -6,6 +6,5 @@
 
 | ドキュメント | 内容 |
 |---|---|
-| [ブランチ運用](branching.md) | ブランチ戦略、日常ワークフロー、upstream 取り込み |
-| [コントリビューション手順](contributing.md) | コンテンツの追加・修正の手順、レビュープロセス |
-| [upstream 変更の取り込み](upstream-sync.md) | Showroom テンプレートの更新を取り込む手順 |
+| [ブランチ運用](branching.md) | ブランチ戦略、日常ワークフロー |
+| [upstream 変更の取り込み](upstream-sync.md) | コンテンツ・環境定義リポジトリの更新手順 |

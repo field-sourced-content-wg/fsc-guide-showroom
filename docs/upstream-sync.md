@@ -1,62 +1,43 @@
 # upstream 変更の取り込み
 
-Showroom テンプレート（`rhpds/showroom_template_nookbag`）や FSC テンプレートが更新された場合の取り込み手順。
+FSC ガイドには2つのリポジトリがあり、それぞれ upstream が異なります。
 
-> **注意**: FSC テンプレートの Showroom バージョンが最新かどうかは、`rhpds/showroom-deployer` と照合してください。
+| リポジトリ | upstream | 何を取り込むか |
+|---|---|---|
+| fsc-guide-showroom（コンテンツ） | `rhpds/showroom_template_nookbag` | テーマ、ビルド設定、CI |
+| fsc-guide-env（環境定義） | `rhpds/showroom-deployer` | Showroom イメージバージョン、Helm テンプレート |
 
-## 初回セットアップ（一度だけ）
+> **注意**: `rhpds/field-sourced-content-template` の Showroom バージョンは最新でない場合があります。イメージバージョンは `rhpds/showroom-deployer` と照合してください。
+
+---
+
+## A. コンテンツリポジトリ（fsc-guide-showroom）の更新
+
+### 初回セットアップ（一度だけ）
 
 ```bash
-# upstream リモートを追加
+cd fsc-guide-showroom
 git remote add upstream https://github.com/rhpds/showroom_template_nookbag.git
 
-# 確認
 git remote -v
-# origin    https://github.com/okadamas/exp-mokada-fsc-guide.git (fetch)
+# origin    https://github.com/field-sourced-content-wg/fsc-guide-showroom.git (fetch)
 # upstream  https://github.com/rhpds/showroom_template_nookbag.git (fetch)
 ```
 
-## 変更の取り込み手順
-
-### 1. upstream の最新を取得
+### 取り込み手順
 
 ```bash
 git fetch upstream
-```
-
-### 2. upstream ブランチで変更をマージ
-
-```bash
 git checkout upstream
 git merge upstream/main
-```
-
-### 3. develop に取り込み
-
-```bash
 git checkout develop
 git merge upstream
-```
-
-### 4. コンフリクトの解決（発生した場合）
-
-```bash
-# コンフリクトファイルを確認
-git status
-
-# 手動で解決後
-git add <解決したファイル>
-git commit
-```
-
-### 5. push
-
-```bash
+# コンフリクトがあれば解決
 git push origin upstream
 git push origin develop
 ```
 
-## コンフリクト解決の指針
+### コンフリクト解決の指針
 
 | ファイル | 方針 |
 |----------|------|
@@ -67,32 +48,44 @@ git push origin develop
 | `package.json` | **upstream を優先**（依存関係の更新を取り込む） |
 | `content/modules/ROOT/pages/` | **コンフリクトなし**（独自コンテンツなので衝突しない） |
 
-## 取り込みの頻度
+---
 
-- 必須ではないが、月1回程度の確認を推奨
-- Showroom テーマの大きなアップデート時は早めに取り込む
-- セキュリティ関連の更新は速やかに取り込む
+## B. 環境定義リポジトリ（fsc-guide-env）の更新
 
-## 取り込み対象の判断
+環境定義の Showroom コンポーネントを更新する手順です。
 
-upstream の変更で取り込む価値があるもの:
-
-- UI テーマ（`ui-bundle.zip`）の更新
-- GitHub Actions ワークフローの改善
-- Antora 関連の依存関係アップデート
-- バグ修正
-
-取り込み不要なもの:
-
-- テンプレートのサンプルページ（独自コンテンツに置き換え済み）
-- テンプレートの `antora.yml` のサンプル属性
-
-## Showroom イメージバージョンの更新（環境定義リポジトリ）
-
-Showroom のイメージバージョンを更新する場合は、`fsc-guide-env` の `helm/values.yaml` を更新します。
-
-### 最新バージョンの確認
+### 1. 最新バージョンを確認
 
 ```bash
 gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/values.yaml --jq '.content' | base64 -d | grep "image:"
 ```
+
+### 2. 自分の環境と比較
+
+```bash
+cd fsc-guide-env
+grep -E "image:|zero_touch_bundle:" helm/values.yaml
+```
+
+### 3. 差異がある場合の更新
+
+バージョン番号だけの変更なら `helm/values.yaml` を編集。テンプレート構造が変わっている場合は `showroom-deployer` から `helm/components/showroom/` のファイルを差し替え。
+
+```bash
+# テンプレートの差し替えが必要な場合
+gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/values.yaml --jq '.content' | base64 -d > helm/components/showroom/values.yaml
+gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/templates/deployment.yaml --jq '.content' | base64 -d > helm/components/showroom/templates/showroom.yaml
+# 他のテンプレートも同様
+```
+
+### 4. RHDP で動作確認
+
+更新後は必ず RHDP で環境をデプロイして動作確認すること。
+
+---
+
+## 取り込みの頻度
+
+- 月1回程度の確認を推奨
+- Showroom の大きなアップデート時（メジャーバージョン変更）は早めに取り込む
+- セキュリティ関連の更新は速やかに取り込む

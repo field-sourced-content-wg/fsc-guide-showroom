@@ -11,6 +11,10 @@
 | 環境構築のベースとなるリポジトリ
 | {fsc_template_repo}[field-sourced-content-template^]
 
+| Showroom Deployer
+| Showroom デプロイの最新 Helm チャート。**Showroom のバージョンはこちらを参照**
+| https://github.com/rhpds/showroom-deployer[showroom-deployer^]
+
 | FSC Working Group
 | チームでの開発・管理場所
 | {fsc_wg_repo}[field-sourced-content-wg^]
@@ -27,6 +31,9 @@
 | create-lab, verify-content 等のツール
 | RHDP 内からアクセス
 |===
+
+NOTE: FSC テンプレートの Showroom バージョンが最新かどうかは、showroom-deployer と照合してください。
+`gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/values.yaml --jq '.content' | base64 -d | grep "image:"`
 
 == 技術ドキュメント
 

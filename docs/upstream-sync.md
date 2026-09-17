@@ -2,6 +2,8 @@
 
 Showroom テンプレート（`rhpds/showroom_template_nookbag`）や FSC テンプレートが更新された場合の取り込み手順。
 
+> **注意**: FSC テンプレートの Showroom バージョンが最新かどうかは、`rhpds/showroom-deployer` と照合してください。
+
 ## 初回セットアップ（一度だけ）
 
 ```bash
@@ -84,3 +86,13 @@ upstream の変更で取り込む価値があるもの:
 
 - テンプレートのサンプルページ（独自コンテンツに置き換え済み）
 - テンプレートの `antora.yml` のサンプル属性
+
+## Showroom イメージバージョンの更新（環境定義リポジトリ）
+
+Showroom のイメージバージョンを更新する場合は、`fsc-guide-env` の `helm/values.yaml` を更新します。
+
+### 最新バージョンの確認
+
+```bash
+gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/values.yaml --jq '.content' | base64 -d | grep "image:"
+```

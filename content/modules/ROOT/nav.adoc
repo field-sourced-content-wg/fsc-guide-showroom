@@ -1,0 +1,17 @@
+* xref:index.adoc[はじめに]
+
+.FSC の基礎
+* xref:01-what-is-fsc.adoc[FSC とは何か]
+* xref:02-use-cases.adoc[想定ユースケース]
+* xref:03-architecture.adoc[アーキテクチャ]
+* xref:04-helm-structure.adoc[Helm 構成]
+
+.デモを作ってみよう
+* xref:05-prepare-template.adoc[テンプレートの準備]
+* xref:06-edit-values.adoc[values.yaml の編集]
+* xref:07-deploy-rhdp.adoc[RHDP からデプロイ]
+* xref:08-showroom-content.adoc[Showroom コンテンツ作成]
+
+.運用と応用
+* xref:09-best-practices.adoc[サンプルを動かして編集する]
+* xref:10-reference.adoc[参考リソース]

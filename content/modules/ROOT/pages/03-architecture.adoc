@@ -1,0 +1,107 @@
+= アーキテクチャ
+:navtitle: アーキテクチャ
+
+== 学習目標
+
+* App of Apps パターンを理解する
+* Sync Waves による依存関係制御を説明できる
+* FSC のディレクトリ構成標準を把握する
+
+== App of Apps パターン
+
+FSC は ArgoCD の **App of Apps パターン** を採用しています。
+
+1つの「親」Application が複数の「子」Application を生成・管理する構成です。
+
+[source]
+----
+親 Application (bootstrap)
+├── 子 App: Operator インストール
+│   ├── keycloak-operator
+│   ├── cnpg-operator
+│   └── mta-operator
+├── 子 App: インフラストラクチャ CR
+│   ├── Keycloak Realm
+│   └── PostgreSQL Cluster
+└── 子 App: アプリケーション
+    ├── CoolStore
+    └── DevSpaces Workspace
+----
+
+=== メリット
+
+* 環境全体を1つの Git リポジトリで管理できる
+* コンポーネントの追加・削除が `values.yaml` の `enabled: true/false` で制御可能
+* ArgoCD が自動的に依存関係を解決しながらデプロイ
+
+== Sync Waves による依存関係制御
+
+Operator のインストールには順序があります。例えば、MTA Operator は PostgreSQL が先に起動している必要があります。
+
+FSC では ArgoCD の **sync-wave** アノテーションを使用して、デプロイ順序を制御します。
+
+[cols="1,2,3",options="header"]
+|===
+| Wave | 対象 | 説明
+
+| Wave 0
+| Namespace, ServiceAccount
+| 基盤となるリソース
+
+| Wave 1
+| Operator Subscription
+| OLM 経由で Operator をインストール
+
+| Wave 2
+| インフラ CR
+| Operator が管理する Custom Resource（Keycloak, PostgreSQL 等）
+
+| Wave 5
+| アプリケーション
+| 業務アプリケーションのデプロイ
+|===
+
+[source,yaml]
+----
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+----
+
+IMPORTANT: Wave の番号が小さいものから順にデプロイされます。同じ Wave 内のリソースは並列にデプロイされます。
+
+== ディレクトリ構成標準
+
+FSC テンプレートリポジトリの標準的なディレクトリ構成です。
+
+[source]
+----
+fsc-template/
+├── Chart.yaml              # チャートのメタデータ
+├── values.yaml             # 環境全体の設計図（Single Source of Truth）
+├── templates/              # ArgoCD Application テンプレート
+│   ├── _helpers.tpl
+│   └── application.yaml    # App of Apps の子 Application 生成
+└── components/             # 各コンポーネントの定義
+    ├── keycloak/
+    │   ├── Chart.yaml
+    │   ├── values.yaml
+    │   └── templates/
+    ├── cnpg/
+    ├── mta/
+    └── devspaces/
+----
+
+=== 重要なファイル
+
+* **`values.yaml`**: 環境全体の「設計図」。どのコンポーネントを有効にするか、各コンポーネントのパラメータを一元管理
+* **`templates/`**: values.yaml の設定を読み込み、ArgoCD 用の Application マニフェストを動的に生成
+* **`components/`**: 各コンポーネントがサブチャートとして独立したディレクトリに格納
+
+== まとめ
+
+* **App of Apps パターン**: 1つの親 Application から環境全体を管理
+* **Sync Waves**: アノテーションでデプロイ順序を制御し、依存関係を解決
+* **標準ディレクトリ構成**: values.yaml を中心に、components/ でモジュール化

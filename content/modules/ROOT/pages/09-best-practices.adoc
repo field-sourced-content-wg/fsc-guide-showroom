@@ -1,0 +1,228 @@
+= 運用と応用: 既存サンプルを動かして編集する
+:navtitle: 運用と応用
+
+== 学習目標
+
+* 既存の FSC サンプルプロジェクトをデプロイして動作確認できる
+* サンプルを自分の用途に合わせてカスタマイズできる
+* 運用に必要なベストプラクティスを理解する
+
+== エクササイズ 1: 既存サンプルをデプロイする
+
+まず、FSC Working Group にある既存のサンプルプロジェクトを実際にデプロイして動作を確認します。
+
+=== 手順
+
+. FSC Working Group のリポジトリ一覧を確認します:
++
+[source,bash,role="execute"]
+----
+# サンプルプロジェクトを確認
+gh repo list field-sourced-content-wg --limit 20
+----
+
+. サンプルプロジェクトを fork します:
++
+[source,bash,role="execute"]
+----
+cd ~
+gh repo fork field-sourced-content-wg/fsc-sample-project --clone
+cd fsc-sample-project
+----
+
+. 構成を確認します:
++
+[source,bash,role="execute"]
+----
+cat values.yaml
+----
++
+どのコンポーネントが有効化されているか、deployer ブロックがどう定義されているかを確認してください。
+
+. RHDP からオーダーします:
++
+* https://demo.redhat.com にアクセス
+* 「Field Sourced Content」を選択
+* fork した自分のリポジトリ URL を指定
+* オーダーを実行
+
+. ArgoCD で同期状態を確認します:
++
+{argocd_url}
++
+全 Application が `Synced` + `Healthy` になるまで待ちます。
+
+NOTE: 初めてデプロイする場合は、サンプルをそのままデプロイして全体の流れを体験することを推奨します。
+
+== エクササイズ 2: サンプルを編集してカスタマイズする
+
+動作確認ができたら、自分の用途に合わせてカスタマイズします。
+
+=== 手順
+
+. コンポーネントの追加・削除:
++
+[source,bash,role="execute"]
+----
+vi values.yaml
+----
++
+不要なコンポーネントを `enabled: false` に、追加したいコンポーネントを `enabled: true` に変更します。
+
+. Showroom コンテンツの編集:
++
+[source,bash,role="execute"]
+----
+# コンテンツリポジトリがある場合
+ls content/modules/ROOT/pages/
+----
++
+AsciiDoc ファイルを編集して、自分のデモシナリオに合わせます。
+
+. 変更をコミット・プッシュします:
++
+[source,bash,role="execute"]
+----
+git add -A
+git commit -m "Customize for my demo"
+git push origin main
+----
+
+. ArgoCD が自動的に変更を検出し、再同期します。ArgoCD UI で同期状態を確認してください。
+
+IMPORTANT: 大きな変更を加える前に、まず小さな変更（1つのコンポーネントの追加・削除など）で Git → ArgoCD → クラスタの反映サイクルを確認してください。
+
+== エクササイズ 3: カスタマイズしたデモを共有する
+
+編集したデモを他のメンバーに共有します。
+
+=== ユースケース別の共有方法
+
+==== プリセールス → コンサルタントへの引き継ぎ
+
+. README に以下を記載します:
++
+[source,bash,role="execute"]
+----
+vi README.md
+----
++
+[source,markdown]
+----
+## デモ環境の概要
+- 目的: MTA を使ったマイグレーションデモ
+- 有効化済みコンポーネント: keycloak, cnpg, mta, devspaces
+- 想定所要時間: 2時間
+
+## RHDP からのオーダー手順
+1. https://demo.redhat.com にアクセス
+2. 「Field Sourced Content」を選択
+3. Repository URL: このリポジトリの URL
+4. Branch: main
+
+## 顧客向けカスタマイズのポイント
+- values.yaml の namespace を顧客環境に合わせて変更
+- Showroom コンテンツの顧客名・シナリオを調整
+----
+
+. リポジトリの URL をコンサルタントに共有します
+
+==== プリセールス間での再利用
+
+. 元のリポジトリを fork:
++
+[source,bash,role="execute"]
+----
+gh repo fork field-sourced-content-wg/original-demo --clone
+----
+
+. 自分の顧客向けにカスタマイズして使用
+
+. 改善点があれば Pull Request で還元:
++
+[source,bash,role="execute"]
+----
+gh pr create --title "Fix: typo in workshop guide" --body "修正内容の説明"
+----
+
+== ベストプラクティス
+
+=== リポジトリ管理
+
+[cols="1,2,2",options="header"]
+|===
+| 接頭辞 | 用途 | 例
+
+| (なし)
+| 正式なプロジェクト
+| `mta-konveyor-workshop`
+
+| `XP-`
+| 実験的な試み
+| `XP-ai-assisted-migration`
+
+| `exp-`
+| 個人の実験
+| `exp-mokada-showroom`
+|===
+
+=== 秘匿情報の管理
+
+IMPORTANT: Git リポジトリには以下を含めないでください:
+
+* 個人情報、顧客情報
+* API キー、パスワード、トークン
+* 社内専用の URL やエンドポイント
+
+秘匿情報は Kubernetes Secret、External Secrets Operator、または RHDP deployer で管理します。
+
+=== バージョン固定
+
+ハンズオンの安定性のため、以下を固定します:
+
+[cols="1,2",options="header"]
+|===
+| 対象 | 方法
+
+| Operator バージョン
+| `values.yaml` で `channel` と `version` を指定
+
+| コンテナイメージ
+| ダイジェスト指定（`image@sha256:...`）または特定タグ
+
+| Showroom UI テーマ
+| `site.yml` の `ui.bundle.url` でリリースタグを固定
+|===
+
+=== コストとライフサイクル
+
+[cols="1,3",options="header"]
+|===
+| アクション | タイミング
+
+| 環境の停止
+| ハンズオン終了後、またはデモが不要になった時点
+
+| 環境の削除
+| プロジェクト完了後、不要な環境を RHDP から削除
+
+| 環境の再作成
+| 必要時に RHDP から再オーダー（Git リポジトリがあればいつでも再現可能）
+|===
+
+IMPORTANT: 使用していない環境を放置すると、クラウドリソースのコストが発生し続けます。
+
+=== 引き継ぎチェックリスト
+
+* [ ] Git リポジトリの URL を共有
+* [ ] `values.yaml` の設定意図を README に記載
+* [ ] RHDP でのオーダー手順を文書化
+* [ ] Showroom コンテンツの更新方法を説明
+* [ ] 使用している Operator のバージョンと制約を明記
+
+== まとめ
+
+* **まずサンプルを動かす**: 既存プロジェクトをデプロイして全体の流れを体験
+* **小さく編集する**: 1つのコンポーネントの変更から始めて反映サイクルを確認
+* **共有は Git リポジトリ**: URL の共有 + README で引き継ぎが完結
+* **コスト管理**: 不要な環境は停止・削除

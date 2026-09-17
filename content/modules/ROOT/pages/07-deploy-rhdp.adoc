@@ -1,0 +1,122 @@
+= RHDP からデプロイ
+:navtitle: RHDP からデプロイ
+
+== 学習目標
+
+* RHDP のカタログから FSC 環境をオーダーできる
+* ArgoCD での同期状態を確認できる
+* デプロイされたコンポーネントの動作を確認できる
+
+== エクササイズ 1: RHDP からのオーダー
+
+Red Hat Demo Platform (RHDP) のカタログから FSC 環境を払い出します。
+
+=== 手順
+
+. RHDP のカタログにアクセスします:
++
+https://demo.redhat.com
+
+. カタログから「**Field Sourced Content**」を検索・選択します
+
+. 以下の情報を入力します:
++
+[cols="1,2,2",options="header"]
+|===
+| 項目 | 説明 | 入力例
+
+| Git Repository URL
+| 前のステップで作成したリポジトリの URL
+| `https://github.com/field-sourced-content-wg/my-demo-env`
+
+| Git Branch
+| 使用するブランチ
+| `main`
+
+| Git Path
+| Helm チャートのパス（ルートなら `.`）
+| `.`
+|===
+
+. 「**Order**」をクリックして環境を払い出します
+
+NOTE: 環境の払い出しには通常 15〜30 分程度かかります。メールで完了通知が届きます。
+
+== エクササイズ 2: ArgoCD での同期状態確認
+
+デプロイが開始されたら、ArgoCD で同期状態を確認します。
+
+=== 手順
+
+. ArgoCD UI にアクセスします:
++
+{argocd_url}
+
+. ログイン情報:
++
+[cols="1,2"]
+|===
+| ユーザー名 | `admin`
+| パスワード | RHDP のメールに記載
+|===
+
+. **App of Apps** の親 Application を確認します:
++
+* ステータスが `Synced` + `Healthy` になっていることを確認
+* 子 Application が Wave 順にデプロイされていく様子を観察
+
+. 各子 Application の詳細を確認します:
++
+* クリックすると、各コンポーネントのリソース一覧が表示されます
+* Pod が `Running` 状態になっていることを確認
+
+IMPORTANT: Sync Wave の順序により、全コンポーネントが Healthy になるまで数分〜十数分かかる場合があります。Operator のインストール（Wave 1）が完了してから、CR の作成（Wave 2）が開始されます。
+
+== エクササイズ 3: デプロイされた環境の確認
+
+OpenShift コンソールからデプロイされたリソースを確認します。
+
+=== 手順
+
+. OpenShift Web Console にアクセスします:
++
+{openshift_console_url}
+
+. 「**Operators**」→「**Installed Operators**」で、有効化した Operator がインストールされていることを確認します
+
+. 「**Workloads**」→「**Pods**」で、各コンポーネントの Pod が `Running` 状態であることを確認します
+
+. デモアプリケーションのルートにアクセスして、動作を確認します
+
+== トラブルシューティング
+
+[cols="1,2",options="header"]
+|===
+| 症状 | 対処法
+
+| Application が `OutOfSync` のまま
+| ArgoCD で「Sync」ボタンを手動クリック。Git リポジトリの URL/ブランチが正しいか確認
+
+| Pod が `CrashLoopBackOff`
+| Pod のログを確認（`oc logs <pod-name>`）。依存する Operator が起動済みか確認
+
+| Operator が `InstallPlan` 待ち
+| OLM の InstallPlan を手動承認（`installPlanApproval: Automatic` を推奨）
+
+| リソース不足
+| ノードのリソース（CPU/Memory）を確認。不要なコンポーネントを `enabled: false` に変更
+|===
+
+== チェックポイント
+
+* [ ] RHDP からオーダーが完了した
+* [ ] ArgoCD で全 Application が `Synced` + `Healthy`
+* [ ] OpenShift コンソールで Pod が `Running` 状態
+* [ ] デモアプリケーションにアクセスできた
+
+== まとめ
+
+* RHDP のカタログから Git リポジトリ URL を指定してオーダー
+* ArgoCD が自動的に App of Apps パターンでデプロイを実行
+* Sync Waves により、依存関係を考慮した順序でコンポーネントがデプロイされる
+* 問題発生時は ArgoCD UI と Pod ログで原因を特定

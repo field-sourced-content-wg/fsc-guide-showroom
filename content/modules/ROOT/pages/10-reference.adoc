@@ -1,0 +1,79 @@
+= 参考リソース
+:navtitle: 参考リソース
+
+== 公式リソース
+
+[cols="1,2,2",options="header"]
+|===
+| リソース | 説明 | リンク
+
+| FSC テンプレート
+| 環境構築のベースとなるリポジトリ
+| {fsc_template_repo}[field-sourced-content-template^]
+
+| FSC Working Group
+| チームでの開発・管理場所
+| {fsc_wg_repo}[field-sourced-content-wg^]
+
+| Showroom テンプレート
+| コンテンツ作成のベースとなるリポジトリ
+| https://github.com/rhpds/showroom_template_nookbag[showroom_template_nookbag^]
+
+| RHDP
+| Red Hat Demo Platform
+| https://demo.redhat.com[demo.redhat.com^]
+
+| RHDP Skills Marketplace
+| create-lab, verify-content 等のツール
+| RHDP 内からアクセス
+|===
+
+== 技術ドキュメント
+
+[cols="1,2",options="header"]
+|===
+| トピック | リンク
+
+| Antora ドキュメント
+| https://docs.antora.org[docs.antora.org^]
+
+| AsciiDoc 記法リファレンス
+| https://docs.asciidoctor.org/asciidoc/latest/[docs.asciidoctor.org^]
+
+| ArgoCD ドキュメント
+| https://argo-cd.readthedocs.io[argo-cd.readthedocs.io^]
+
+| Helm ドキュメント
+| https://helm.sh/docs/[helm.sh/docs^]
+|===
+
+== 関連プロジェクト例
+
+[cols="1,3",options="header"]
+|===
+| プロジェクト | 説明
+
+| MTA & Konveyor AI Workshop
+| Migration Toolkit for Applications を使ったアプリケーションマイグレーションのハンズオン
+
+| RHEL IdM Workshop
+| Red Hat Enterprise Linux Identity Management のハンズオン
+|===
+
+NOTE: これらのプロジェクトは FSC パターンで構築されており、テンプレートのカスタマイズ例として参考になります。
+
+== ネクストステップ
+
+このガイドを完了した後のアクション:
+
+. **自分のデモ環境を構築する**: テンプレートから実際のプロジェクト用リポジトリを作成し、必要なコンポーネントを組み込む
+. **Showroom コンテンツを充実させる**: ハンズオン手順、スクリーンショット、トラブルシューティングを追加
+. **チームに共有する**: リポジトリ URL と RHDP オーダー手順を共有し、フィードバックを収集
+. **CI/CD を整備する**: GitHub Actions で Helm Lint と verify-content を自動実行
+
+== フィードバック
+
+このガイドに対するフィードバックや改善提案は、以下の方法で受け付けています:
+
+* Git リポジトリの Issue / Pull Request
+* FSC Working Group のチャンネル

@@ -1,0 +1,252 @@
+= Showroom コンテンツ作成
+:navtitle: Showroom コンテンツ作成
+
+== 学習目標
+
+* Showroom の構成要素を理解する
+* AsciiDoc でハンズオンコンテンツを作成できる
+* ローカルでプレビューし、コンテンツの品質を確認できる
+* create-lab / verify-content ツールの使い方を理解する
+
+== Showroom とは
+
+Showroom は、ブラウザ上でガイド（左ペイン）とターミナルやコンソール（右ペイン）を統合したハンズオン環境を提供するフレームワークです。
+
+コンテンツは AsciiDoc 形式で記述し、Antora で静的サイトとしてビルドします。
+
+== エクササイズ 1: Showroom テンプレートの準備
+
+Showroom コンテンツ用のリポジトリを準備します。
+
+=== 手順
+
+. Showroom テンプレートから新しいリポジトリを作成します:
++
+https://github.com/rhpds/showroom_template_nookbag
++
+「**Use this template**」→「**Create a new repository**」
+
+. リポジトリをクローンします:
++
+[source,bash,role="execute"]
+----
+cd ~
+git clone https://github.com/field-sourced-content-wg/my-demo-showroom.git
+cd my-demo-showroom
+----
+
+. ディレクトリ構成を確認します:
++
+[source,bash,role="execute"]
+----
+tree -L 3 content/
+----
++
+[source]
+----
+content/
+├── antora.yml            # コンポーネント設定・変数定義
+└── modules/
+    └── ROOT/
+        ├── nav.adoc      # ナビゲーション（サイドバー）
+        └── pages/        # AsciiDoc ページ群
+----
+
+== エクササイズ 2: 設定ファイルの編集
+
+=== site.yml の編集
+
+[source,bash,role="execute"]
+----
+vi site.yml
+----
+
+`site.title` をワークショップのタイトルに変更します:
+
+[source,yaml]
+----
+site:
+  title: "My Demo Workshop"
+----
+
+=== antora.yml の編集
+
+[source,bash,role="execute"]
+----
+vi content/antora.yml
+----
+
+ハンズオンで使用する変数を定義します:
+
+[source,yaml]
+----
+asciidoc:
+  attributes:
+    guid: "%guid%"
+    openshift_console_url: "%openshift_console_url%"
+    openshift_cluster_ingress_domain: "%openshift_cluster_ingress_domain%"
+    user: "%bastion_ssh_user_name%"
+    password: "%bastion_ssh_password%"
+----
+
+NOTE: `%変数名%` はデプロイ時に Showroom が実際の値に置換します。ローカルプレビューではプレースホルダーのまま表示されます。
+
+=== ui-config.yml の編集
+
+[source,bash,role="execute"]
+----
+vi ui-config.yml
+----
+
+右ペインのタブ構成を定義します:
+
+[source,yaml]
+----
+tabs:
+  - name: Terminal
+    path: /wetty
+    port: 443
+
+  - name: OCP Console
+    url: 'https://console-openshift-console.${DOMAIN}'
+----
+
+== エクササイズ 3: コンテンツページの作成
+
+=== ページの基本構造
+
+AsciiDoc ページの標準的な構成:
+
+[source,asciidoc]
+----
+= ページタイトル
+:navtitle: 短いタイトル
+
+== 学習目標
+
+* 目標1
+* 目標2
+
+== エクササイズ 1: 作業名
+
+=== 手順
+
+. 手順1の説明:
++
+\[source,bash,role="execute"]
+\----
+コマンド
+\----
+
+. 手順2の説明
+
+NOTE: 補足情報
+
+== まとめ
+
+* ポイント1
+* ポイント2
+----
+
+=== 実行可能なコードブロック
+
+`role="execute"` を指定すると、Showroom 上でクリックしてターミナルに送信できるボタンが表示されます:
+
+[source,asciidoc]
+----
+\[source,bash,role="execute"]
+\----
+oc get pods -n {namespace}
+\----
+----
+
+=== 変数の使用
+
+`antora.yml` で定義した変数は `{変数名}` で参照できます:
+
+[source,asciidoc]
+----
+OpenShift コンソール: {openshift_console_url}
+
+ユーザー名: `{user}` / パスワード: `{password}`
+----
+
+=== nav.adoc の編集
+
+[source,bash,role="execute"]
+----
+vi content/modules/ROOT/nav.adoc
+----
+
+ページをナビゲーションに追加します:
+
+[source,asciidoc]
+----
+* xref:index.adoc[はじめに]
+* xref:01-setup.adoc[環境セットアップ]
+* xref:02-exercise.adoc[演習]
+* xref:99-conclusion.adoc[まとめ]
+----
+
+== エクササイズ 4: ローカルプレビュー
+
+作成したコンテンツをローカルでプレビューします。
+
+=== 手順
+
+. Podman（または Docker）でプレビューサーバーを起動します:
++
+[source,bash,role="execute"]
+----
+podman run --rm --name antora \
+  -v $PWD:/antora \
+  -p 8080:8080 \
+  -i -t ghcr.io/juliaaano/antora-viewer
+----
+
+. ブラウザで http://localhost:8080 にアクセスします
+
+. ページの表示、ナビゲーション、コードブロックの動作を確認します
+
+. 確認後、`Ctrl+C` でサーバーを停止します
+
+== エクササイズ 5: コンテンツ品質ツール
+
+RHDP Skills Marketplace が提供するツールでコンテンツの品質を検証します。
+
+=== create-lab
+
+標準化されたテンプレートからハンズオンラボの構成を自動生成します:
+
+[source,bash,role="execute"]
+----
+# create-lab でスキャフォールディングを生成
+create-lab init my-workshop
+----
+
+=== verify-content
+
+作成したコンテンツが Red Hat のガイドラインに準拠しているかを自動検証します:
+
+[source,bash,role="execute"]
+----
+# コンテンツの検証（Lint）
+verify-content check content/
+----
+
+NOTE: デプロイ前に verify-content を実行し、不備を事前に検知することを推奨します。
+
+== チェックポイント
+
+* [ ] site.yml, antora.yml, ui-config.yml を編集した
+* [ ] AsciiDoc でページを作成した
+* [ ] nav.adoc にページを追加した
+* [ ] ローカルプレビューで表示を確認した
+
+== まとめ
+
+* Showroom コンテンツは AsciiDoc 形式で `content/modules/ROOT/pages/` に配置
+* `role="execute"` でターミナル実行可能なコードブロックを作成
+* `%変数名%` でデプロイ時に値が自動置換される
+* `podman run` でローカルプレビューが可能
+* create-lab / verify-content でコンテンツ品質を保証

@@ -1,0 +1,118 @@
+= テンプレートの準備
+:navtitle: テンプレートの準備
+
+== 学習目標
+
+* FSC テンプレートリポジトリを fork して自分のリポジトリを作成できる
+* テンプレートのディレクトリ構成を理解する
+* ローカル環境でリポジトリをクローンできる
+
+== エクササイズ 1: テンプレートリポジトリの Fork
+
+公式の FSC テンプレートリポジトリから、自分のプロジェクト用リポジトリを作成します。
+
+=== 手順
+
+. ブラウザで FSC テンプレートリポジトリにアクセスします
++
+{fsc_template_repo}
+
+. 「**Use this template**」→「**Create a new repository**」をクリックします
+
+. リポジトリの設定を入力します:
++
+[cols="1,2",options="header"]
+|===
+| 項目 | 設定値
+
+| Owner
+| `field-sourced-content-wg`（または個人アカウント）
+
+| Repository name
+| `my-demo-env`（任意の名前。実験的なものには `XP-` 接頭辞を推奨）
+
+| Visibility
+| Public
+|===
+
+. 「**Create repository**」をクリックします
+
+NOTE: 実験的な試みには命名規則 `XP-{プロジェクト名}` を使用してください（例: `XP-mta-konveyor-demo`）。
+
+== エクササイズ 2: リポジトリのクローン
+
+作成したリポジトリをローカル環境にクローンします。
+
+=== 手順
+
+. ターミナルで以下を実行します:
++
+[source,bash,role="execute"]
+----
+cd ~
+git clone https://github.com/field-sourced-content-wg/my-demo-env.git
+cd my-demo-env
+----
+
+. ディレクトリ構成を確認します:
++
+[source,bash,role="execute"]
+----
+find . -maxdepth 3 -type f | head -30
+----
+
+== エクササイズ 3: 構成の確認
+
+テンプレートの主要ファイルを確認し、それぞれの役割を理解します。
+
+=== 手順
+
+. `Chart.yaml` を確認します:
++
+[source,bash,role="execute"]
+----
+cat Chart.yaml
+----
++
+チャートの名前、バージョン、依存関係が定義されています。
+
+. `values.yaml` を確認します:
++
+[source,bash,role="execute"]
+----
+cat values.yaml
+----
++
+各コンポーネントの `enabled` スイッチとパラメータが定義されています。
+
+. `components/` ディレクトリの構成を確認します:
++
+[source,bash,role="execute"]
+----
+ls -la components/
+----
++
+各コンポーネントが独立したサブチャートとして格納されています。
+
+. `templates/` ディレクトリを確認します:
++
+[source,bash,role="execute"]
+----
+ls -la templates/
+----
++
+App of Apps パターンで子 Application を生成するテンプレートが格納されています。
+
+== チェックポイント
+
+以下が確認できていれば、このエクササイズは完了です。
+
+* [ ] テンプレートから自分のリポジトリを作成した
+* [ ] ローカルにクローンした
+* [ ] `Chart.yaml`, `values.yaml`, `components/`, `templates/` の役割を理解した
+
+== まとめ
+
+* FSC テンプレートから「**Use this template**」で新しいリポジトリを作成
+* テンプレートには `values.yaml`（設計図）と `components/`（モジュール群）が含まれる
+* 次のステップでは `values.yaml` を編集して、必要なコンポーネントを有効化します

@@ -1,0 +1,112 @@
+= Helm 構成
+:navtitle: Helm 構成
+
+== 学習目標
+
+* Helm が FSC で果たす役割を理解する
+* values.yaml の構造と編集方法を把握する
+* deployer による外部値注入の仕組みを理解する
+
+== Helm の役割
+
+Helm は FSC におけるパッケージングとデプロイの核となるツールです。
+
+* 複雑な Kubernetes マニフェストを **テンプレート化** する
+* 標準化された単位で **再利用可能** にする
+* `values.yaml` から設定値を注入し、環境ごとの差異を吸収する
+
+== values.yaml — Single Source of Truth
+
+`values.yaml` は FSC における「設計図」であり、環境全体の設定を一元管理します。
+
+[source,yaml]
+----
+# コンポーネントの有効化/無効化
+components:
+  keycloak:
+    enabled: true
+    version: "24.0"
+  cnpg:
+    enabled: true
+  mta:
+    enabled: true
+    version: "7.2"
+  devspaces:
+    enabled: false       # 不要なら false に
+
+# 共通設定
+namespace: mta-demo
+storageClass: gp3-csi
+----
+
+=== 編集のポイント
+
+* `enabled: true/false` でコンポーネントの追加・除外を切り替え
+* マニフェスト自体は変更不要 — values.yaml のパラメータだけで柔軟に対応
+* バージョン指定により、特定バージョンでの固定運用が可能
+
+== モジュール化による拡張性
+
+各コンポーネントは **サブチャート** として独立しています。
+
+[source]
+----
+components/
+├── keycloak/           # 認証基盤
+│   ├── Chart.yaml
+│   ├── values.yaml     # コンポーネント固有のデフォルト値
+│   └── templates/
+│       ├── namespace.yaml
+│       ├── subscription.yaml
+│       └── keycloak-cr.yaml
+├── cnpg/               # PostgreSQL
+├── mta/                # Migration Toolkit
+└── devspaces/          # 開発環境
+----
+
+=== 新しいコンポーネントの追加手順
+
+. `components/` に新しいディレクトリを作成
+. `Chart.yaml`, `values.yaml`, `templates/` を配置
+. 親の `values.yaml` に `enabled` スイッチを追加
+. 親の `templates/application.yaml` が自動的に検出
+
+== Helm Values の外部注入（deployer）
+
+RHDP からデプロイする際、環境固有の値（クラスタドメイン、API URL 等）が自動的に注入されます。
+
+[source,yaml]
+----
+# values.yaml 内の deployer ブロック
+# RHDP が実行時にこの値を自動的に上書きする
+deployer:
+  domain: ""        # → "*.apps.cluster.example.com" が注入される
+  apiUrl: ""        # → API サーバー URL が注入される
+----
+
+=== 仕組み
+
+. `values.yaml` に `deployer` ブロックをプレースホルダーとして定義
+. RHDP がこの変数を認識し、実行時に値を自動的にオーバーライド
+. テンプレート内で `{{ .Values.deployer.domain }}` として参照
+
+IMPORTANT: `deployer` ブロック内の値はハードコードしないでください。RHDP が自動注入します。
+
+=== テンプレートでの使用例
+
+[source,yaml]
+----
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mta-ui
+spec:
+  host: "mta.{{ .Values.deployer.domain }}"
+----
+
+== まとめ
+
+* **values.yaml** が環境全体の Single Source of Truth
+* **`enabled: true/false`** でコンポーネントを切り替え
+* **components/** のサブチャート構造でモジュール化・拡張が容易
+* **deployer** ブロックで RHDP からの値注入を実現し、ポータビリティを維持

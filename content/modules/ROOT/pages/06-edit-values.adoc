@@ -1,0 +1,128 @@
+= values.yaml の編集
+:navtitle: values.yaml の編集
+
+== 学習目標
+
+* values.yaml を編集してコンポーネントを有効化できる
+* deployer ブロックの意味と注意点を理解する
+* 編集内容を Git にコミットしてプッシュできる
+
+== エクササイズ 1: コンポーネントの有効化
+
+デモ環境に必要な Operator とコンポーネントを有効化します。
+
+=== 手順
+
+. `values.yaml` を開きます:
++
+[source,bash,role="execute"]
+----
+vi values.yaml
+----
+
+. 必要なコンポーネントの `enabled` を `true` に変更します:
++
+[source,yaml]
+----
+components:
+  keycloak:
+    enabled: true      # 認証基盤
+  cnpg:
+    enabled: true      # PostgreSQL データベース
+  mta:
+    enabled: true      # Migration Toolkit for Applications
+  devspaces:
+    enabled: true      # ブラウザベース IDE
+----
+
+. 不要なコンポーネントは `enabled: false` のままにします
+
+NOTE: 有効化するコンポーネントが多いほど、デプロイ時間とリソース消費が増加します。デモに必要なものだけを有効化してください。
+
+== エクササイズ 2: deployer ブロックの確認
+
+RHDP から値が自動注入される `deployer` ブロックを確認します。
+
+=== 手順
+
+. `values.yaml` 内の deployer ブロックを確認します:
++
+[source,bash,role="execute"]
+----
+grep -A 5 "deployer:" values.yaml
+----
+
+. 以下のようなブロックがあることを確認します:
++
+[source,yaml]
+----
+deployer:
+  domain: ""
+  apiUrl: ""
+----
+
+IMPORTANT: `deployer` ブロックの値は空のままにしてください。RHDP がデプロイ時に自動的にクラスタ固有の値を注入します。
+
+== エクササイズ 3: パラメータのカスタマイズ
+
+環境固有のパラメータを設定します。
+
+=== 手順
+
+. Namespace の設定:
++
+[source,yaml]
+----
+namespace: my-demo    # デモ用の Namespace 名
+----
+
+. Operator バージョンの固定（推奨）:
++
+[source,yaml]
+----
+components:
+  mta:
+    enabled: true
+    version: "7.2"          # 特定バージョンに固定
+    channel: "stable-v7.2"  # OLM チャネル
+----
++
+IMPORTANT: ハンズオンの安定性のため、Operator バージョンは固定することを推奨します。`latest` チャネルを使用すると、予期しないバージョンアップで手順が動作しなくなる可能性があります。
+
+== エクササイズ 4: 変更のコミットとプッシュ
+
+編集内容を Git にコミットしてリモートにプッシュします。
+
+=== 手順
+
+. 変更内容を確認します:
++
+[source,bash,role="execute"]
+----
+git diff values.yaml
+----
+
+. コミットしてプッシュします:
++
+[source,bash,role="execute"]
+----
+git add values.yaml
+git commit -m "Enable components for demo environment"
+git push origin main
+----
+
+NOTE: ArgoCD が Git リポジトリを監視しているため、プッシュ後に自動的にデプロイが開始されます（RHDP からオーダー済みの場合）。
+
+== チェックポイント
+
+* [ ] 必要なコンポーネントを `enabled: true` に変更した
+* [ ] `deployer` ブロックが空のままであることを確認した
+* [ ] Operator バージョンを固定した
+* [ ] 変更を Git にコミット・プッシュした
+
+== まとめ
+
+* `values.yaml` の `enabled: true/false` でコンポーネントを選択
+* `deployer` ブロックは RHDP が自動注入するため編集不要
+* Operator バージョンはハンズオン安定性のため固定を推奨
+* Git にプッシュすると ArgoCD が自動的に反映

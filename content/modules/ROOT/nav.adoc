@@ -8,8 +8,8 @@
 
 .デモを作ってみよう
 * xref:05-prepare-template.adoc[テンプレートの準備]
-* xref:06-edit-values.adoc[values.yaml の編集]
-* xref:07-deploy-rhdp.adoc[RHDP からデプロイ]
+* xref:06-edit-values.adoc[デモ環境の構築]
+* xref:07-deploy-rhdp.adoc[デプロイと確認]
 * xref:08-showroom-content.adoc[Showroom コンテンツ作成]
 
 .運用と応用

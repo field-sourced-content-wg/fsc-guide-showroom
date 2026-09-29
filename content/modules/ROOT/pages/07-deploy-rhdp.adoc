@@ -1,122 +1,278 @@
-= RHDP からデプロイ
-:navtitle: RHDP からデプロイ
+= デプロイと確認
+:navtitle: デプロイと確認
 
 == 学習目標
 
-* RHDP のカタログから FSC 環境をオーダーできる
-* ArgoCD での同期状態を確認できる
-* デプロイされたコンポーネントの動作を確認できる
+* 作成したデモ環境を Git にプッシュし、RHDP からデプロイできる
+* ArgoCD で全コンポーネントの同期状態を確認できる
+* デモアプリにブラウザからアクセスし、動的変数の表示を確認できる
+* values.yaml の変更が ArgoCD 経由で自動反映されることを体験する
 
-== エクササイズ 1: RHDP からのオーダー
+== エクササイズ 1: Git にプッシュする
 
-Red Hat Demo Platform (RHDP) のカタログから FSC 環境を払い出します。
+前のステップで作成・変更したファイルを Git にコミットしてプッシュします。
 
 === 手順
 
-. RHDP のカタログにアクセスします:
+. 変更内容を確認します:
++
+[source,bash,role="execute"]
+----
+git status
+----
+
+. すべての変更をコミットしてプッシュします:
++
+[source,bash,role="execute"]
+----
+git add -A
+git commit -m "Add CNPG operator, PostgreSQL cluster, and demo app with dynamic variables"
+git push origin main
+----
+
+== エクササイズ 2: RHDP からオーダーする
+
+Red Hat Demo Platform (RHDP) から FSC 環境をオーダーします。
+
+=== 手順
+
+. RHDP にアクセスします:
 +
 https://demo.redhat.com
 
 . カタログから「**Field Sourced Content**」を検索・選択します
 
-. 以下の情報を入力します:
+. 以下の通りフォームを入力します:
 +
-[cols="1,2,2",options="header"]
+[cols="1,2",options="header"]
 |===
-| 項目 | 説明 | 入力例
+| 項目 | 設定値
 
-| Git Repository URL
-| 前のステップで作成したリポジトリの URL
-| `https://github.com/field-sourced-content-wg/my-demo-env`
+| Activity
+| `Practice / Enablement`
 
-| Git Branch
-| 使用するブランチ
+| Purpose
+| `Conduct internal training/enablement`
+
+| cluster_size
+| `sno`（最小構成で十分）
+
+| OpenShift Version
+| デフォルトのまま
+
+| Select Base Workloads
+| チェックなし
+
+| Users
+| チェックなし
+
+| **GitOps - Existing Gitops Repo?**
+| **チェックあり**
+
+| GitOps - Private GitOps repo?
+| チェックなし（public リポジトリのため）
+
+| **GitOps Repo URL**
+| `+https://github.com/<自分のアカウント>/my-cnpg-demo.git+`
+
+| GitOps Branch
 | `main`
 
-| Git Path
-| Helm チャートのパス（ルートなら `.`）
-| `.`
+| **GitOps Path**
+| **`examples/helm`**
+
+| AI/LLM Configuration
+| チェックなし
+
+| Auto-destroy
+| 短めを推奨（コスト管理）
 |===
 
 . 「**Order**」をクリックして環境を払い出します
 
-NOTE: 環境の払い出しには通常 15〜30 分程度かかります。メールで完了通知が届きます。
+NOTE: 環境の払い出しには通常 15〜30 分かかります。メールで完了通知が届きます。
 
-== エクササイズ 2: ArgoCD での同期状態確認
+== エクササイズ 3: ArgoCD で同期状態を確認する
 
-デプロイが開始されたら、ArgoCD で同期状態を確認します。
-
-=== 手順
-
-. ArgoCD UI にアクセスします:
-+
-{argocd_url}
-
-. ログイン情報:
-+
-[cols="1,2"]
-|===
-| ユーザー名 | `admin`
-| パスワード | RHDP のメールに記載
-|===
-
-. **App of Apps** の親 Application を確認します:
-+
-* ステータスが `Synced` + `Healthy` になっていることを確認
-* 子 Application が Wave 順にデプロイされていく様子を観察
-
-. 各子 Application の詳細を確認します:
-+
-* クリックすると、各コンポーネントのリソース一覧が表示されます
-* Pod が `Running` 状態になっていることを確認
-
-IMPORTANT: Sync Wave の順序により、全コンポーネントが Healthy になるまで数分〜十数分かかる場合があります。Operator のインストール（Wave 1）が完了してから、CR の作成（Wave 2）が開始されます。
-
-== エクササイズ 3: デプロイされた環境の確認
-
-OpenShift コンソールからデプロイされたリソースを確認します。
+環境が Ready になったら、ArgoCD で各コンポーネントの状態を確認します。
 
 === 手順
 
-. OpenShift Web Console にアクセスします:
+. RHDP ダッシュボード（https://demo.redhat.com → Services）で以下を確認します:
 +
-{openshift_console_url}
+* Status が `Running` になっていること
+* **Console URL**（`+https://console-openshift-console.apps.cluster-xxxxx...+` の形式）を確認
++
+IMPORTANT: API URL（`+https://api.cluster-xxxxx...+`）ではなく **Console URL** を開いてください。API URL を開くと JSON が表示されるだけです。
 
-. 「**Operators**」→「**Installed Operators**」で、有効化した Operator がインストールされていることを確認します
+. ArgoCD UI にアクセスします。以下のいずれかの方法で開きます:
++
+* OpenShift コンソール左上の **アプリケーションメニュー（3x3 アイコン）** → **OpenShift GitOps** → **Cluster Argo CD**
+* または URL を直接入力:
++
+[source]
+----
+https://openshift-gitops-server-openshift-gitops.apps.<クラスタドメイン>
+----
 
-. 「**Workloads**」→「**Pods**」で、各コンポーネントの Pod が `Running` 状態であることを確認します
+. 「**Log in via OpenShift**」をクリックし、RHDP から提供された認証情報でログインします
 
-. デモアプリケーションのルートにアクセスして、動作を確認します
-
-== トラブルシューティング
-
-[cols="1,2",options="header"]
+. 以下の Application が `Synced` + `Healthy` になっていることを確認します:
++
+[cols="1,1,2",options="header"]
 |===
-| 症状 | 対処法
+| Application 名 | 期待する状態 | 内容
 
-| Application が `OutOfSync` のまま
-| ArgoCD で「Sync」ボタンを手動クリック。Git リポジトリの URL/ブランチが正しいか確認
+| `field-content`
+| Synced + Healthy
+| 親 Application（App of Apps）
 
-| Pod が `CrashLoopBackOff`
-| Pod のログを確認（`oc logs <pod-name>`）。依存する Operator が起動済みか確認
+| `field-content-operator`
+| Synced + Healthy
+| CNPG Operator（OLM 経由）
 
-| Operator が `InstallPlan` 待ち
-| OLM の InstallPlan を手動承認（`installPlanApproval: Automatic` を推奨）
+| `field-content-postgres-cluster`
+| Synced + Healthy
+| PostgreSQL Cluster（CNPG CR）
 
-| リソース不足
-| ノードのリソース（CPU/Memory）を確認。不要なコンポーネントを `enabled: false` に変更
+| `field-content-hello-world`
+| Synced + Healthy
+| デモアプリ（HTML + Route）
+
+| `field-content-showroom`
+| Synced + Healthy
+| Showroom（有効な場合）
 |===
+
+IMPORTANT: Operator のインストールと PostgreSQL Cluster の起動には数分かかります。`field-content-operator` が Healthy になってから `field-content-postgres-cluster` が Synced になるまで待ってください。
+
+== エクササイズ 4: デモアプリにアクセスする
+
+デモアプリがブラウザからアクセスできることを確認します。
+
+=== 手順
+
+. OpenShift コンソールで Route URL を確認します:
++
+* 左メニュー → **ネットワーク** → **Route**
+* プロジェクトを `demo-app`（values.yaml で指定した namespace）に切り替え
+* `hello-world` Route の「場所」列の URL をクリック
++
+または、以下の形式で直接アクセスします:
++
+[source]
+----
+https://hello-world-demo-app.apps.<クラスタドメイン>
+----
+
+. ブラウザで以下を確認します:
++
+* [ ] ヘッダーに「CNPG デモアプリ」と表示される（`values.yaml` の `demo.title`）
+* [ ] カスタムメッセージが表示される（`demo.message`）
+* [ ] ヘッダーの色が赤（`#EE0000`）になっている（`demo.themeColor`）
+* [ ] 「RHDP が自動注入した値」にクラスタドメインと API URL が表示される
+* [ ] 「PostgreSQL 接続情報」にクラスタ名、Namespace、データベース名が表示される
+
+NOTE: 「RHDP が自動注入した値」は RHDP がデプロイ時に `deployer` ブロックに自動設定した値です。あなたは `values.yaml` で空のまま定義しただけですが、RHDP が環境固有の値を注入しています。
+
+== エクササイズ 5: PostgreSQL の動作を確認する
+
+CNPG Operator が PostgreSQL Cluster を正しく構築したことを確認します。
+
+=== 手順
+
+. OpenShift コンソールで Pod を確認します:
++
+* 左メニュー → **ワークロード** → **Pod**
+* プロジェクトを `database` に切り替え
+* `demo-postgres-1` Pod が `Running` であることを確認
+
+. ターミナルから PostgreSQL に接続して確認します:
++
+[source,bash,role="execute"]
+----
+oc exec -n database demo-postgres-1 -- psql -U app -d app -c "SELECT version();"
+----
++
+PostgreSQL のバージョン情報が表示されれば成功です。
+
+== エクササイズ 6: 値を変更してライブアップデートを体験する
+
+`values.yaml` を変更して Git push すると、ArgoCD が自動的に変更を検出し、デモアプリに反映されることを確認します。
+
+=== 手順
+
+. `values.yaml` のテーマカラーとメッセージを変更します:
++
+[source,bash,role="execute"]
+----
+vi examples/helm/values.yaml
+----
++
+例:
++
+[source,yaml]
+----
+    demo:
+      title: "My Custom Demo"
+      message: "テーマカラーを変更しました！FSC なら values.yaml を変えるだけ。"
+      themeColor: "#0066CC"
+----
+
+. コミットしてプッシュします:
++
+[source,bash,role="execute"]
+----
+git add -A
+git commit -m "Change theme color and message"
+git push origin main
+----
+
+. ArgoCD が自動的に変更を検出し、Sync を開始します（1〜3 分）
+
+. ブラウザでデモアプリをリロードし、以下を確認します:
++
+* [ ] ヘッダーの色が青（`#0066CC`）に変わった
+* [ ] タイトルが「My Custom Demo」に変わった
+* [ ] メッセージが更新された
+
+NOTE: ConfigMap の変更は Pod が再作成されるまで反映されない場合があります。ArgoCD で Sync 後、Pod が更新されない場合は `demo-app` namespace の Pod を削除してください（Deployment が自動で再作成します）。
+
+== 再利用性の確認
+
+ここまでの作業で、あなたは**再利用可能な Git リポジトリ**を手に入れました:
+
+[cols="1,3",options="header"]
+|===
+| 場面 | 方法
+
+| 同じ環境を再デプロイ
+| RHDP で同じリポジトリ URL を指定してオーダー
+
+| チームメンバーに共有
+| リポジトリ URL を伝えるだけ。相手が RHDP からオーダー可能
+
+| 別の Operator に変更
+| `values.yaml` の `operator` セクションを変更するだけ
+
+| 別の顧客向けにカスタマイズ
+| Fork → `values.yaml` のタイトル・メッセージ・パラメータを変更
+|===
+
+`deployer` ブロックは RHDP が環境ごとに自動注入するため、**同じリポジトリが異なるクラスタで動作**します。
 
 == チェックポイント
 
-* [ ] RHDP からオーダーが完了した
-* [ ] ArgoCD で全 Application が `Synced` + `Healthy`
-* [ ] OpenShift コンソールで Pod が `Running` 状態
-* [ ] デモアプリケーションにアクセスできた
+* [ ] Git にプッシュした
+* [ ] RHDP からオーダーした
+* [ ] ArgoCD で全 Application が Synced + Healthy
+* [ ] デモアプリにブラウザからアクセスし、動的変数が表示された
+* [ ] PostgreSQL が稼働していることを確認した
+* [ ] 値を変更して Git push → ArgoCD 自動反映を体験した
 
 == まとめ
 
-* RHDP のカタログから Git リポジトリ URL を指定してオーダー
-* ArgoCD が自動的に App of Apps パターンでデプロイを実行
-* Sync Waves により、依存関係を考慮した順序でコンポーネントがデプロイされる
-* 問題発生時は ArgoCD UI と Pod ログで原因を特定
+* Git push → RHDP オーダー → ArgoCD 自動デプロイの一連の流れを体験
+* `deployer` ブロックにより、RHDP が環境固有の値（ドメイン、API URL）を自動注入
+* `values.yaml` の変更は Git push するだけで ArgoCD が自動反映
+* 作成したリポジトリは**再利用可能な資産** — URL を共有するだけで誰でもデプロイ可能

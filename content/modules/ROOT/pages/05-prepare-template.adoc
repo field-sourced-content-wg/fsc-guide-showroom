@@ -3,13 +3,14 @@
 
 == 学習目標
 
-* FSC テンプレートリポジトリを fork して自分のリポジトリを作成できる
-* テンプレートのディレクトリ構成を理解する
-* ローカル環境でリポジトリをクローンできる
+* FSC テンプレートリポジトリから自分のリポジトリを作成できる
+* テンプレートのディレクトリ構成と各ファイルの役割を理解する
+* 親 values.yaml から子コンポーネントへの値の流れを理解する
+* Operator コンポーネントの設定を CNPG に変更できる
 
-== エクササイズ 1: テンプレートリポジトリの Fork
+== エクササイズ 1: テンプレートリポジトリから自分のリポジトリを作成
 
-公式の FSC テンプレートリポジトリから、自分のプロジェクト用リポジトリを作成します。
+公式の FSC テンプレートリポジトリから、自分のデモ環境用リポジトリを作成します。
 
 === 手順
 
@@ -26,93 +27,183 @@
 | 項目 | 設定値
 
 | Owner
-| `field-sourced-content-wg`（または個人アカウント）
+| 自分の GitHub アカウント
 
 | Repository name
-| `my-demo-env`（任意の名前。実験的なものには `XP-` 接頭辞を推奨）
+| `my-cnpg-demo`（任意の名前）
 
 | Visibility
-| Public
+| Public（RHDP からクローンするため）
 |===
 
 . 「**Create repository**」をクリックします
 
-NOTE: 実験的な試みには命名規則 `XP-{プロジェクト名}` を使用してください（例: `XP-mta-konveyor-demo`）。
-
-== エクササイズ 2: リポジトリのクローン
-
-作成したリポジトリをローカル環境にクローンします。
-
-=== 手順
-
-. ターミナルで以下を実行します:
+. ターミナルでクローンします（`<自分のアカウント>` を置き換えてください）:
 +
-[source,bash,role="execute"]
+[source,bash]
 ----
 cd ~
-git clone https://github.com/field-sourced-content-wg/my-demo-env.git
-cd my-demo-env
+git clone https://github.com/<自分のアカウント>/my-cnpg-demo.git
+cd my-cnpg-demo/examples/helm
 ----
+
+NOTE: テンプレートの Helm チャートは `examples/helm/` ディレクトリにあります。以降の作業はすべてこのディレクトリ内で行います。
+
+== エクササイズ 2: テンプレートの構成を確認する
+
+=== 手順
 
 . ディレクトリ構成を確認します:
 +
 [source,bash,role="execute"]
 ----
-find . -maxdepth 3 -type f | head -30
-----
-
-== エクササイズ 3: 構成の確認
-
-テンプレートの主要ファイルを確認し、それぞれの役割を理解します。
-
-=== 手順
-
-. `Chart.yaml` を確認します:
-+
-[source,bash,role="execute"]
-----
-cat Chart.yaml
+find . -type f -not -path './.git/*' | sort
 ----
 +
-チャートの名前、バージョン、依存関係が定義されています。
+以下のような構成になっています:
++
+[source]
+----
+examples/helm/
+├── Chart.yaml                       # 親チャートの定義
+├── values.yaml                      # 全コンポーネントの設定（設計図）
+├── templates/
+│   └── applications.yaml            # ArgoCD Application を生成（値の橋渡し）
+└── components/
+    ├── operator/                    # Operator インストール（OLM 経由）
+    │   ├── templates/subscription.yaml
+    │   └── values.yaml
+    ├── hello-world/                 # サンプルアプリ
+    │   ├── templates/deployment.yaml, service.yaml, ...
+    │   └── values.yaml
+    └── showroom/                    # Showroom ラボガイド
+        ├── templates/showroom.yaml
+        └── values.yaml
+----
 
-. `values.yaml` を確認します:
+. 親 `values.yaml` を確認します:
 +
 [source,bash,role="execute"]
 ----
 cat values.yaml
 ----
 +
-各コンポーネントの `enabled` スイッチとパラメータが定義されています。
+注目ポイント:
++
+* `components.operator` — Operator の設定（デフォルトは Web Terminal Operator）
+* `components.helloWorld` — サンプルアプリの設定
+* `deployer` — **RHDP が自動注入する値**（空のまま定義）
 
-. `components/` ディレクトリの構成を確認します:
+== エクササイズ 3: 値の流れを理解する
+
+FSC の最も重要な仕組みは、値が以下の流れで渡されることです:
+
+[source]
+----
+RHDP がデプロイ時に deployer ブロックを自動注入
+       ↓
+親 values.yaml  →  templates/applications.yaml  →  子コンポーネントの values
+（作者が設定）      （値の橋渡し役）                 （テンプレートで使用）
+----
+
+=== 手順
+
+. `templates/applications.yaml` を確認します:
 +
 [source,bash,role="execute"]
 ----
-ls -la components/
+cat templates/applications.yaml
 ----
 +
-各コンポーネントが独立したサブチャートとして格納されています。
+このファイルは ArgoCD Application リソースを生成し、親 `values.yaml` の値を各コンポーネントに渡します。
++
+例えば、hello-world セクションでは:
++
+[source,yaml]
+----
+    helm:
+      valuesObject:
+        demo:
+          enabled: {{ .Values.components.helloWorld.enabled }}
+          namespace: {{ .Values.components.helloWorld.namespace }}
+        deployer:
+          domain: {{ .Values.deployer.domain | quote }}
+----
++
+* `components.helloWorld` の値が `demo` として子コンポーネントに渡される
+* `deployer.domain`（RHDP 注入値）も子コンポーネントに転送される
 
-. `templates/` ディレクトリを確認します:
+. hello-world の deployment.yaml を確認します:
 +
 [source,bash,role="execute"]
 ----
-ls -la templates/
+cat components/hello-world/templates/deployment.yaml
 ----
 +
-App of Apps パターンで子 Application を生成するテンプレートが格納されています。
+`+{{ .Values.demo.appName }}+` のように、applications.yaml から渡された値を使用しています。
+
+== エクササイズ 4: Operator を CNPG に変更する
+
+テンプレートの Operator コンポーネントは汎用的な OLM Subscription テンプレートです。`values.yaml` の値を変えるだけで、任意の Operator をインストールできます。
+
+=== 手順
+
+. `values.yaml` の `components.operator` セクションを以下のように変更します:
++
+[source,bash,role="execute"]
+----
+vi values.yaml
+----
++
+変更前（Web Terminal Operator）:
++
+[source,yaml]
+----
+  operator:
+    enabled: false
+    name: web-terminal
+    namespace: openshift-operators
+    channel: fast
+    source: redhat-operators
+    sourceNamespace: openshift-marketplace
+    installPlanApproval: Automatic
+----
++
+変更後（CNPG Operator）:
++
+[source,yaml]
+----
+  operator:
+    enabled: true
+    name: cloudnative-pg
+    namespace: openshift-operators
+    channel: stable-v1
+    source: certified-operators
+    sourceNamespace: openshift-marketplace
+    installPlanApproval: Automatic
+----
++
+変更点:
++
+* `enabled`: `false` → `true`（有効化）
+* `name`: `web-terminal` → `cloudnative-pg`
+* `channel`: `fast` → `stable-v1`
+* `source`: `redhat-operators` → `certified-operators`
+
+NOTE: Operator テンプレート（`components/operator/templates/subscription.yaml`）自体は一切変更していません。`values.yaml` だけで Operator を切り替えられるのが FSC のコンポーネント設計の利点です。
 
 == チェックポイント
 
-以下が確認できていれば、このエクササイズは完了です。
-
 * [ ] テンプレートから自分のリポジトリを作成した
-* [ ] ローカルにクローンした
-* [ ] `Chart.yaml`, `values.yaml`, `components/`, `templates/` の役割を理解した
+* [ ] ディレクトリ構成と各ファイルの役割を理解した
+* [ ] 親 values.yaml → applications.yaml → コンポーネントへの値の流れを理解した
+* [ ] Operator の設定を CNPG に変更した
 
 == まとめ
 
 * FSC テンプレートから「**Use this template**」で新しいリポジトリを作成
-* テンプレートには `values.yaml`（設計図）と `components/`（モジュール群）が含まれる
-* 次のステップでは `values.yaml` を編集して、必要なコンポーネントを有効化します
+* テンプレートには `values.yaml`（設計図）、`templates/applications.yaml`（値の橋渡し）、`components/`（モジュール群）が含まれる
+* 値は **親 values.yaml → applications.yaml → コンポーネント** の順で渡される
+* `deployer` ブロックは **RHDP がデプロイ時に自動注入**（作者は空のまま定義）
+* Operator コンポーネントは汎用テンプレート — `values.yaml` の値を変えるだけで任意の Operator をインストール可能
+* 次のステップでは、PostgreSQL Cluster とデモアプリのコンポーネントを追加します

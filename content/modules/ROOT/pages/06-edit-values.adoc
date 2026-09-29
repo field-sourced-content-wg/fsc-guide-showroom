@@ -1,128 +1,544 @@
-= values.yaml の編集
-:navtitle: values.yaml の編集
+= デモ環境の構築
+:navtitle: デモ環境の構築
 
 == 学習目標
 
-* values.yaml を編集してコンポーネントを有効化できる
-* deployer ブロックの意味と注意点を理解する
-* 編集内容を Git にコミットしてプッシュできる
+* 新しいコンポーネント（PostgreSQL Cluster）を作成し、ArgoCD に登録できる
+* 既存コンポーネント（hello-world）を改修して、動的変数を表示するデモアプリにできる
+* Route、ConfigMap を使ったブラウザアクセス可能なアプリを構成できる
 
-== エクササイズ 1: コンポーネントの有効化
+== 全体像
 
-デモ環境に必要な Operator とコンポーネントを有効化します。
+このエクササイズで、以下の3つのコンポーネントが連携するデモ環境を構築します:
+
+[source]
+----
+[Operator]  CNPG Operator（OLM 経由でインストール）
+     ↓ 管理
+[PostgreSQL]  CNPG Cluster CR → PostgreSQL インスタンスを自動作成
+     ↓ 接続情報を表示
+[デモアプリ]  hello-world 改修 → 動的変数 + DB 情報を表示する Web ページ
+----
+
+NOTE: 以降の作業はすべて `examples/helm/` ディレクトリ内で行います。
+
+== エクササイズ 1: PostgreSQL Cluster コンポーネントの作成
+
+CNPG Operator が管理する PostgreSQL Cluster を定義するコンポーネントを新規作成します。
 
 === 手順
 
-. `values.yaml` を開きます:
+. コンポーネントのディレクトリを作成します:
++
+[source,bash,role="execute"]
+----
+mkdir -p components/postgres-cluster/templates
+----
+
+. `Chart.yaml` を作成します:
++
+[source,bash,role="execute"]
+----
+cat > components/postgres-cluster/Chart.yaml << 'EOF'
+apiVersion: v2
+name: postgres-cluster
+description: CloudNativePG PostgreSQL Cluster
+type: application
+version: 0.1.0
+EOF
+----
+
+. `values.yaml` を作成します:
++
+[source,bash,role="execute"]
+----
+cat > components/postgres-cluster/values.yaml << 'EOF'
+postgresCluster:
+  enabled: false
+  name: my-postgres
+  namespace: database
+  instances: 1
+  storageSize: 5Gi
+  database: app
+  owner: app
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+EOF
+----
+
+. Cluster CR テンプレートを作成します:
++
+[source,bash,role="execute"]
+----
+cat > components/postgres-cluster/templates/cluster.yaml << 'ENDOFFILE'
+{{- if .Values.postgresCluster.enabled }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.postgresCluster.namespace }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.postgresCluster.name }}
+  namespace: {{ .Values.postgresCluster.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  instances: {{ .Values.postgresCluster.instances }}
+  storage:
+    size: {{ .Values.postgresCluster.storageSize }}
+  resources:
+    requests:
+      memory: {{ .Values.postgresCluster.resources.requests.memory | quote }}
+      cpu: {{ .Values.postgresCluster.resources.requests.cpu | quote }}
+    limits:
+      memory: {{ .Values.postgresCluster.resources.limits.memory | quote }}
+      cpu: {{ .Values.postgresCluster.resources.limits.cpu | quote }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.postgresCluster.database }}
+      owner: {{ .Values.postgresCluster.owner }}
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: "128MB"
+{{- end }}
+ENDOFFILE
+----
++
+ポイント:
++
+* `sync-wave: "2"` — Operator（Wave 0）が先にインストールされてから CR を作成
+* `bootstrap.initdb` — 初期データベースとオーナーを自動作成
+* すべてのパラメータが `values.yaml` から注入される
+
+== エクササイズ 2: PostgreSQL Cluster を ArgoCD に登録する
+
+新しいコンポーネントを ArgoCD が認識するように、`templates/applications.yaml` に Application 定義を追加します。
+
+=== 手順
+
+. `templates/applications.yaml` を開きます:
++
+[source,bash,role="execute"]
+----
+vi templates/applications.yaml
+----
+
+. ファイルの末尾（最後の `+{{- end }}+` の後）に以下を追加します:
++
+[source,yaml]
+----
+
+{{- if .Values.components.postgresCluster.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Release.Name }}-postgres-cluster
+  namespace: {{ .Values.argocd.namespace }}
+  labels:
+    demo.redhat.com/application: "field-content"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.argocd.project }}
+  source:
+    repoURL: {{ .Values.gitops.repoUrl }}
+    targetRevision: {{ .Values.gitops.revision }}
+    path: {{ .Values.gitops.basePath }}/components/postgres-cluster
+    helm:
+      valuesObject:
+        postgresCluster:
+          enabled: {{ .Values.components.postgresCluster.enabled }}
+          name: {{ .Values.components.postgresCluster.name }}
+          namespace: {{ .Values.components.postgresCluster.namespace }}
+          instances: {{ .Values.components.postgresCluster.instances }}
+          storageSize: {{ .Values.components.postgresCluster.storageSize | quote }}
+          database: {{ .Values.components.postgresCluster.database }}
+          owner: {{ .Values.components.postgresCluster.owner }}
+          resources:
+            requests:
+              memory: {{ .Values.components.postgresCluster.resources.requests.memory | quote }}
+              cpu: {{ .Values.components.postgresCluster.resources.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.components.postgresCluster.resources.limits.memory | quote }}
+              cpu: {{ .Values.components.postgresCluster.resources.limits.cpu | quote }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.components.postgresCluster.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+----
+
+. 親 `values.yaml` に PostgreSQL Cluster の設定を追加します:
 +
 [source,bash,role="execute"]
 ----
 vi values.yaml
 ----
-
-. 必要なコンポーネントの `enabled` を `true` に変更します:
++
+`components:` セクション内（`showroom:` ブロックの後など）に以下を追加します:
 +
 [source,yaml]
 ----
-components:
-  keycloak:
-    enabled: true      # 認証基盤
-  cnpg:
-    enabled: true      # PostgreSQL データベース
-  mta:
-    enabled: true      # Migration Toolkit for Applications
-  devspaces:
-    enabled: true      # ブラウザベース IDE
-----
-
-. 不要なコンポーネントは `enabled: false` のままにします
-
-NOTE: 有効化するコンポーネントが多いほど、デプロイ時間とリソース消費が増加します。デモに必要なものだけを有効化してください。
-
-== エクササイズ 2: deployer ブロックの確認
-
-RHDP から値が自動注入される `deployer` ブロックを確認します。
-
-=== 手順
-
-. `values.yaml` 内の deployer ブロックを確認します:
-+
-[source,bash,role="execute"]
-----
-grep -A 5 "deployer:" values.yaml
-----
-
-. 以下のようなブロックがあることを確認します:
-+
-[source,yaml]
-----
-deployer:
-  domain: ""
-  apiUrl: ""
-----
-
-IMPORTANT: `deployer` ブロックの値は空のままにしてください。RHDP がデプロイ時に自動的にクラスタ固有の値を注入します。
-
-== エクササイズ 3: パラメータのカスタマイズ
-
-環境固有のパラメータを設定します。
-
-=== 手順
-
-. Namespace の設定:
-+
-[source,yaml]
-----
-namespace: my-demo    # デモ用の Namespace 名
-----
-
-. Operator バージョンの固定（推奨）:
-+
-[source,yaml]
-----
-components:
-  mta:
+  # --- PostgreSQL Cluster (CNPG) ---
+  postgresCluster:
     enabled: true
-    version: "7.2"          # 特定バージョンに固定
-    channel: "stable-v7.2"  # OLM チャネル
+    name: demo-postgres
+    namespace: database
+    instances: 1
+    storageSize: 5Gi
+    database: app
+    owner: app
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
 ----
-+
-IMPORTANT: ハンズオンの安定性のため、Operator バージョンは固定することを推奨します。`latest` チャネルを使用すると、予期しないバージョンアップで手順が動作しなくなる可能性があります。
 
-== エクササイズ 4: 変更のコミットとプッシュ
+== エクササイズ 3: hello-world に Route を追加する
 
-編集内容を Git にコミットしてリモートにプッシュします。
+現在の hello-world には Route がなく、ブラウザからアクセスできません。Route テンプレートを追加します。
 
 === 手順
 
-. 変更内容を確認します:
+. Route テンプレートを作成します:
 +
 [source,bash,role="execute"]
 ----
-git diff values.yaml
+cat > components/hello-world/templates/route.yaml << 'ENDOFFILE'
+{{- if .Values.demo.enabled }}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Values.demo.appName }}
+  namespace: {{ .Values.demo.namespace }}
+  labels:
+    app: {{ .Values.demo.appName }}
+spec:
+  to:
+    kind: Service
+    name: {{ .Values.demo.appName }}
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end }}
+ENDOFFILE
 ----
 
-. コミットしてプッシュします:
+== エクササイズ 4: 動的変数を表示する HTML ページを作成する
+
+FSC の核心である**動的変数**を視覚的に体験できる HTML ページを ConfigMap として作成します。
+
+=== 手順
+
+. ConfigMap テンプレートを作成します:
 +
 [source,bash,role="execute"]
 ----
-git add values.yaml
-git commit -m "Enable components for demo environment"
-git push origin main
+cat > components/hello-world/templates/configmap-html.yaml << 'ENDOFFILE'
+{{- if .Values.demo.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.demo.appName }}-html
+  namespace: {{ .Values.demo.namespace }}
+  labels:
+    app: {{ .Values.demo.appName }}
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="ja">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>{{ .Values.demo.title }}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; background: #f5f5f5; color: #333; }
+        .header { background: {{ .Values.demo.themeColor }}; color: white; padding: 2rem; text-align: center; }
+        .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; color: {{ .Values.demo.themeColor }}; border-bottom: 2px solid {{ .Values.demo.themeColor }}; padding-bottom: 0.5rem; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.6rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { color: #666; width: 40%; }
+        td { font-family: monospace; color: #0066cc; word-break: break-all; }
+        .message { font-size: 1.1rem; line-height: 1.8; }
+        .how { background: #f0f0f0; border-radius: 4px; padding: 1rem; font-size: 0.9rem; line-height: 1.8; }
+        .how code { background: #ddd; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: monospace; }
+        .footer { text-align: center; padding: 2rem; color: #999; font-size: 0.85rem; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>{{ .Values.demo.title }}</h1>
+        <p>Field Sourced Content (FSC) デモアプリケーション</p>
+      </div>
+      <div class="container">
+        <div class="card">
+          <h2>カスタムメッセージ</h2>
+          <p class="message">{{ .Values.demo.message }}</p>
+        </div>
+        <div class="card">
+          <h2>RHDP が自動注入した値（deployer）</h2>
+          <table>
+            <tr><th>クラスタドメイン</th><td>{{ .Values.deployer.domain | default "(未設定)" }}</td></tr>
+            <tr><th>API URL</th><td>{{ .Values.deployer.apiUrl | default "(未設定)" }}</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h2>PostgreSQL 接続情報（values.yaml で設定）</h2>
+          <table>
+            <tr><th>クラスタ名</th><td>{{ .Values.demo.postgres.name }}</td></tr>
+            <tr><th>Namespace</th><td>{{ .Values.demo.postgres.namespace }}</td></tr>
+            <tr><th>データベース</th><td>{{ .Values.demo.postgres.database }}</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h2>values.yaml で設定した値</h2>
+          <table>
+            <tr><th>テーマカラー</th><td>{{ .Values.demo.themeColor }}</td></tr>
+            <tr><th>Namespace</th><td>{{ .Values.demo.namespace }}</td></tr>
+            <tr><th>アプリ名</th><td>{{ .Values.demo.appName }}</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h2>仕組み</h2>
+          <div class="how">
+            <p>このページの内容は、すべて <code>values.yaml</code> から生成されています:</p>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+              <li><strong>タイトル・メッセージ・テーマカラー</strong> — 作者が <code>values.yaml</code> で設定</li>
+              <li><strong>クラスタドメイン・API URL</strong> — RHDP がデプロイ時に自動注入</li>
+              <li><strong>PostgreSQL 情報</strong> — CNPG コンポーネントと連動</li>
+            </ul>
+            <p><code>values.yaml</code> を編集して Git push すると、ArgoCD が自動で反映します。</p>
+          </div>
+        </div>
+      </div>
+      <div class="footer">Powered by Field Sourced Content (FSC) | Red Hat Demo Platform</div>
+    </body>
+    </html>
+{{- end }}
+ENDOFFILE
 ----
 
-NOTE: ArgoCD が Git リポジトリを監視しているため、プッシュ後に自動的にデプロイが開始されます（RHDP からオーダー済みの場合）。
+== エクササイズ 5: Deployment を修正して HTML ページをマウントする
+
+ConfigMap の HTML を httpd のドキュメントルートにマウントします。
+
+=== 手順
+
+. `components/hello-world/templates/deployment.yaml` を開きます:
++
+[source,bash,role="execute"]
+----
+vi components/hello-world/templates/deployment.yaml
+----
+
+. `containers` セクションに `volumeMounts` を追加し、`spec` に `volumes` を追加します:
++
+変更後の全体像:
++
+[source,yaml]
+----
+{{- if .Values.demo.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.demo.appName }}
+  namespace: {{ .Values.demo.namespace }}
+  labels:
+    app: {{ .Values.demo.appName }}
+spec:
+  replicas: {{ .Values.demo.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.demo.appName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.demo.appName }}
+    spec:
+      containers:
+        - name: httpd
+          image: {{ .Values.demo.image }}
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: html-content
+              mountPath: /var/www/html
+              readOnly: true
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+      volumes:
+        - name: html-content
+          configMap:
+            name: {{ .Values.demo.appName }}-html
+{{- end }}
+----
++
+追加した部分:
++
+* `volumeMounts` — ConfigMap をコンテナの `/var/www/html` にマウント
+* `volumes` — ConfigMap `hello-world-html` をボリュームとして定義
+
+== エクササイズ 6: 親 values.yaml にカスタムパラメータを追加する
+
+hello-world に追加したパラメータ（タイトル、メッセージ、テーマカラー、PostgreSQL 情報）を親 `values.yaml` に定義し、`applications.yaml` 経由で渡します。
+
+=== 手順
+
+. 親 `values.yaml` の `components.helloWorld` セクションを以下のように変更します:
++
+[source,bash,role="execute"]
+----
+vi values.yaml
+----
++
+[source,yaml]
+----
+  helloWorld:
+    enabled: true
+    namespace: demo-app
+    appName: hello-world
+    replicas: 1
+    image: registry.redhat.io/ubi8/httpd-24:latest
+    demo:
+      title: "CNPG デモアプリ"
+      message: "このメッセージは values.yaml で自由に変更できます。Git push すると ArgoCD が自動反映します。"
+      themeColor: "#EE0000"
+    postgres:
+      name: demo-postgres
+      namespace: database
+      database: app
+    userInfo:
+      enabled: true
+      title: "CNPG Demo"
+      instructions: "CNPG Operator で PostgreSQL を自動デプロイするデモです。"
+----
+
+. `gitops.repoUrl` を自分のリポジトリ URL に変更します:
++
+[source,yaml]
+----
+gitops:
+  repoUrl: "https://github.com/<自分のアカウント>/my-cnpg-demo.git"
+  revision: "main"
+  basePath: "examples/helm"
+----
+
+. `templates/applications.yaml` の hello-world セクション `valuesObject` に、新しいパラメータを追加します:
++
+[source,bash,role="execute"]
+----
+vi templates/applications.yaml
+----
++
+hello-world の `valuesObject` を以下のように拡張します（`demo:` ブロックに追加、`deployer:` ブロックに `apiUrl` を追加）:
++
+[source,yaml]
+----
+    helm:
+      valuesObject:
+        demo:
+          enabled: {{ .Values.components.helloWorld.enabled }}
+          namespace: {{ .Values.components.helloWorld.namespace }}
+          appName: {{ .Values.components.helloWorld.appName }}
+          replicas: {{ .Values.components.helloWorld.replicas }}
+          image: {{ .Values.components.helloWorld.image }}
+          title: {{ .Values.components.helloWorld.demo.title | quote }}
+          message: {{ .Values.components.helloWorld.demo.message | quote }}
+          themeColor: {{ .Values.components.helloWorld.demo.themeColor | quote }}
+          postgres:
+            name: {{ .Values.components.postgresCluster.name | quote }}
+            namespace: {{ .Values.components.postgresCluster.namespace | quote }}
+            database: {{ .Values.components.postgresCluster.database | quote }}
+        userInfo:
+          enabled: {{ .Values.components.helloWorld.userInfo.enabled }}
+          title: {{ .Values.components.helloWorld.userInfo.title | quote }}
+          instructions: {{ .Values.components.helloWorld.userInfo.instructions | quote }}
+        deployer:
+          domain: {{ .Values.deployer.domain | quote }}
+          apiUrl: {{ .Values.deployer.apiUrl | quote }}
+        showroom:
+          enabled: {{ .Values.components.showroom.enabled }}
+          namespace: {{ .Values.components.showroom.namespace }}
+        operator:
+          name: {{ .Values.components.operator.name }}
+----
+
+== 最終確認: ファイル構成
+
+すべてのエクササイズが完了すると、以下のファイル構成になります:
+
+[source,bash,role="execute"]
+----
+find . -type f -not -path './.git/*' | sort
+----
+
+新規作成したファイル:
+
+[source]
+----
+components/postgres-cluster/Chart.yaml            # PostgreSQL コンポーネント定義
+components/postgres-cluster/values.yaml            # PostgreSQL デフォルト値
+components/postgres-cluster/templates/cluster.yaml # CNPG Cluster CR テンプレート
+components/hello-world/templates/route.yaml        # Route（ブラウザアクセス）
+components/hello-world/templates/configmap-html.yaml # HTML ページ（動的変数表示）
+----
+
+変更したファイル:
+
+[source]
+----
+values.yaml                                        # CNPG 有効化 + カスタムパラメータ追加
+templates/applications.yaml                        # PostgreSQL Application 追加 + hello-world 拡張
+components/hello-world/templates/deployment.yaml   # ConfigMap マウント追加
+----
 
 == チェックポイント
 
-* [ ] 必要なコンポーネントを `enabled: true` に変更した
-* [ ] `deployer` ブロックが空のままであることを確認した
-* [ ] Operator バージョンを固定した
-* [ ] 変更を Git にコミット・プッシュした
+* [ ] postgres-cluster コンポーネント（3ファイル）を作成した
+* [ ] `applications.yaml` に PostgreSQL Cluster の Application を追加した
+* [ ] hello-world に Route テンプレートを追加した
+* [ ] hello-world に ConfigMap（HTML ページ）を追加した
+* [ ] Deployment を修正して ConfigMap をマウントした
+* [ ] 親 `values.yaml` にカスタムパラメータを追加した
+* [ ] `applications.yaml` の hello-world セクションに新しいパラメータの橋渡しを追加した
+* [ ] `gitops.repoUrl` を自分のリポジトリ URL に変更した
 
 == まとめ
 
-* `values.yaml` の `enabled: true/false` でコンポーネントを選択
-* `deployer` ブロックは RHDP が自動注入するため編集不要
-* Operator バージョンはハンズオン安定性のため固定を推奨
-* Git にプッシュすると ArgoCD が自動的に反映
+* **新規コンポーネント作成**: ディレクトリ + Chart.yaml + values.yaml + テンプレート
+* **ArgoCD への登録**: `applications.yaml` に Application 定義を追加し、`values.yaml` と橋渡し
+* **既存コンポーネント改修**: Route、ConfigMap の追加と Deployment の修正
+* **動的変数の活用**: 作者設定値 + RHDP 注入値 + コンポーネント連携値を HTML ページで可視化
+* 次のステップでは、この環境を RHDP からデプロイして動作を確認します

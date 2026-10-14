@@ -187,11 +187,14 @@ CNPG Operator が PostgreSQL Cluster を正しく構築したことを確認し�
 * プロジェクトを `database` に切り替え
 * `demo-postgres-1` Pod が `Running` であることを確認
 
-. ターミナルから PostgreSQL に接続して確認します:
+. Pod のターミナルから PostgreSQL に接続して確認します:
++
+* `demo-postgres-1` Pod をクリック → **ターミナル** タブを開く
+* 以下を実行:
 +
 [source,bash,role="execute"]
 ----
-oc exec -n database demo-postgres-1 -- psql -U app -d app -c "SELECT version();"
+psql -U postgres -d app -c "SELECT version();"
 ----
 +
 PostgreSQL のバージョン情報が表示されれば成功です。
@@ -202,14 +205,25 @@ PostgreSQL のバージョン情報が表示されれば成功です。
 
 === 手順
 
-. `values.yaml` のテーマカラーとメッセージを変更します:
+. GitHub でリポジトリの `examples/helm/values.yaml` を開きます:
 +
-[source,bash,role="execute"]
+`+https://github.com/<自分のアカウント>/my-cnpg-demo/blob/main/examples/helm/values.yaml+`
+
+. 右上の鉛筆アイコン（Edit this file）をクリックします
+
+. `components.helloWorld.demo` セクションを探し、以下の3行を変更します:
++
+変更前:
++
+[source,yaml]
 ----
-vi examples/helm/values.yaml
+    demo:
+      title: "CNPG デモアプリ"
+      message: "このメッセージは values.yaml で自由に変更できます。..."
+      themeColor: "#EE0000"
 ----
 +
-例:
+変更後:
 +
 [source,yaml]
 ----
@@ -219,14 +233,7 @@ vi examples/helm/values.yaml
       themeColor: "#0066CC"
 ----
 
-. コミットしてプッシュします:
-+
-[source,bash,role="execute"]
-----
-git add -A
-git commit -m "Change theme color and message"
-git push origin main
-----
+. 右上の「**Commit changes...**」をクリックし、コミットメッセージを入力して「**Commit changes**」で保存します
 
 . ArgoCD が自動的に変更を検出し、Sync を開始します（1〜3 分）
 

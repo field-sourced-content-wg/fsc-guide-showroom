@@ -17,5 +17,5 @@ asciidoc:
     openshift_cluster_ingress_domain: "%openshift_cluster_ingress_domain%"
     openshift_api_url: "%openshift_api_url%"
     argocd_url: "https://openshift-gitops-server-openshift-gitops.%openshift_cluster_ingress_domain%"
-    fsc_template_repo: "https://github.com/redhat-gpe/field-sourced-content-template"
+    fsc_template_repo: "https://github.com/rhpds/field-sourced-content-template"
     fsc_wg_repo: "https://github.com/field-sourced-content-wg"

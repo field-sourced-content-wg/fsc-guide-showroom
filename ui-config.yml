@@ -10,7 +10,7 @@ view_switcher:
 
 tabs:
   - name: Terminal
-    path: /wetty
+    path: /terminal
     port: 443
 
   - name: OCP Console

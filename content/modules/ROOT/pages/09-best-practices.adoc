@@ -220,6 +220,48 @@ gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/values.
 | RHDP オーダー時に PAT で認証
 |===
 
+=== Web Terminal の設定
+
+Showroom からターミナルを利用するには、Web Terminal の設定が必要です。
+
+. `values.yaml` の operator コンポーネントで Web Terminal Operator を有効にします:
++
+[source,yaml]
+----
+components:
+  operator:
+    enabled: true
+    name: web-terminal
+    namespace: openshift-operators
+    channel: fast
+    source: redhat-operators
+    sourceNamespace: openshift-marketplace
+----
+
+. `ui-config.yml` でターミナルタブを設定します:
++
+[source,yaml]
+----
+tabs:
+  - name: Terminal
+    path: /terminal
+    port: 443
+----
++
+NOTE: パスは `/wetty` ではなく `/terminal` を使用してください。
+
+参考: https://github.com/field-sourced-content-wg/fsc-guide-showroom/blob/main/ui-config.yml[ui-config.yml^]
+
+=== ワークショップユーザーポータル
+
+複数ユーザー向けワークショップでは、RHDP の **Enable Workshop user info** を使うと共通のポータルが払い出されます。
+
+. RHDP でオーダー時に **Create users on cluster** をチェックし、ユーザー数を設定
+. 各ユーザーは RHDP が提供する **Users** 情報からログインできる
+. ユーザーごとに Showroom が立ち上がり、個別の演習環境を利用可能
+
+TIP: これにより RHDP を参加者ごとに個別に払い出す必要がなくなり、1つの環境でワークショップ全体を運営できます。
+
 === コストとライフサイクル
 
 [cols="1,3",options="header"]

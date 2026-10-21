@@ -236,6 +236,31 @@ verify-content check content/
 
 NOTE: デプロイ前に verify-content を実行し、不備を事前に検知することを推奨します。
 
+== コンテンツ更新の反映手順
+
+Showroom コンテンツを変更した後、RHDP 環境に反映する手順です。
+
+. コンテンツリポジトリに変更を **Git push** する
+
+. RHDP 環境の OpenShift Console で **Workloads → Pods** → プロジェクト `showroom` を開く
+
+. `showroom-*` Pod を **削除** する（右の三点メニュー → Pod の削除）
+
+. Deployment が新しい Pod を自動作成し、git-cloner が最新のコンテンツを clone → Antora がビルド → 反映
+
+NOTE: Pod の再作成には 1〜2 分かかります。Pod が Running (3/3) になったらブラウザをリロードしてください。
+
+TIP: ローカルで事前にプレビューしてから push すると、RHDP 環境での確認回数を減らせます。
+
+== RHDP Skills Marketplace の活用
+
+Showroom コンテンツの作成を支援するツールやスキルが RHDP Skills Marketplace で公開されています。
+
+* https://github.com/rhpds/rhdp-skills-marketplace[RHDP Skills Marketplace（GitHub）^]
+* https://rhpds.github.io/rhdp-skills-marketplace/[RHDP Skills Marketplace（カタログ）^]
+
+Claude Code を使っている場合、Showroom の AsciiDoc コンテンツを生成するスキルも利用できます。
+
 == チェックポイント
 
 * [ ] site.yml, antora.yml, ui-config.yml を編集した

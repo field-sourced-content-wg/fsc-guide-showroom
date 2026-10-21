@@ -35,6 +35,27 @@
 NOTE: FSC テンプレートの Showroom バージョンが最新かどうかは、showroom-deployer と照合してください。
 `gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/values.yaml --jq '.content' | base64 -d | grep "image:"`
 
+== テンプレートの種類と違い
+
+[cols="1,2,1",options="header"]
+|===
+| テンプレート | 特徴 | リンク
+
+| Demo Platform Team 公式
+| Helm + Ansible 両対応。Nookbag（LlamaStack、Zero Trust UI）統合。RHDP チームが管理
+| https://github.com/rhpds/field-sourced-content-template[field-sourced-content-template^]
+
+| 日本チーム版（fsc-guide-env）
+| Helm 特化。CNPG + デモアプリ + Showroom の実践例。日本語ガイド付き
+| https://github.com/field-sourced-content-wg/fsc-guide-env[fsc-guide-env^]
+
+| 自作リポジトリ
+| 上記いずれかを Fork し、自分のコンポーネントを追加・カスタマイズしたもの
+| （各自のリポジトリ）
+|===
+
+TIP: 初めての方は公式テンプレートを Fork し、`examples/helm/` をベースにカスタマイズするのが最も簡単です。日本チーム版は実践的なサンプルとして参考にしてください。
+
 == 技術ドキュメント
 
 [cols="1,2",options="header"]

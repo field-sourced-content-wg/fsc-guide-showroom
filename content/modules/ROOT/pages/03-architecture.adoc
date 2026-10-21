@@ -100,6 +100,62 @@ fsc-template/
 * **`templates/`**: values.yaml の設定を読み込み、ArgoCD 用の Application マニフェストを動的に生成
 * **`components/`**: 各コンポーネントがサブチャートとして独立したディレクトリに格納
 
+== FSC 固有の機能: 動的変数の注入
+
+FSC の最大の特徴は、RHDP がデプロイ時に **環境固有の変数を Helm チャートに自動注入** する点です。これにより、同じリポジトリが異なるクラスタで動作します。
+
+=== 注入される主な変数
+
+[cols="1,2",options="header"]
+|===
+| 変数 | 内容
+
+| `deployer.domain`
+| クラスタの Ingress ドメイン（例: `apps.cluster-abc123.example.com`）
+
+| `deployer.apiUrl`
+| クラスタの API URL
+
+| `guid`
+| 環境ごとの一意の識別子
+
+| `user.count`
+| ワークショップのユーザー数
+
+| `bases.virt`
+| OpenShift Virtualization が有効かどうか（true/false）
+
+| `bases.rhoai`
+| OpenShift AI が有効かどうか（true/false）
+
+| `bases.aap`
+| Ansible Automation Platform が有効かどうか（true/false）
+
+| `litemaas.apiUrl` / `litemaas.apiKey` / `litemaas.model`
+| LiteMaaS 有効時の AI モデル接続情報
+|===
+
+=== 使い方
+
+Helm テンプレート内で `{{ .Values.deployer.domain }}` のように参照します。
+
+[source,yaml]
+----
+# Route の定義例
+spec:
+  host: myapp.{{ .Values.deployer.domain }}
+----
+
+[source,yaml]
+----
+# ベースワークロードの有無で条件分岐
+{{- if .Values.bases.rhoai }}
+# OpenShift AI が有効な場合のみデプロイ
+{{- end }}
+----
+
+IMPORTANT: これらの変数は RHDP が自動注入するため、values.yaml にデフォルト値（空文字）を定義しておくだけで動作します。
+
 == まとめ
 
 * **App of Apps パターン**: 1つの親 Application から環境全体を管理

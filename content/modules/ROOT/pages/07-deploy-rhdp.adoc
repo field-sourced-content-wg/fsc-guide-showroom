@@ -107,6 +107,7 @@ IMPORTANT: API URL（`+https://api.cluster-xxxxx...+`）ではなく **Console U
 
 . ArgoCD UI にアクセスします。以下のいずれかの方法で開きます:
 +
+* **RHDP ダッシュボード** → Services → 該当環境の **Detail** → **FSC OpenShift CNV** タブ → ArgoCD リンクをクリック
 * OpenShift コンソール左上の **アプリケーションメニュー（3x3 アイコン）** → **OpenShift GitOps** → **Cluster Argo CD**
 * または URL を直接入力:
 +

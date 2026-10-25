@@ -35,6 +35,106 @@
 NOTE: FSC テンプレートの Showroom バージョンが最新かどうかは、showroom-deployer と照合してください。
 `gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/values.yaml --jq '.content' | base64 -d | grep "image:"`
 
+== RHDP から注入される変数一覧
+
+RHDP がデプロイ時に Helm チャートへ自動注入する変数の完全リストです。`values.yaml` にデフォルト値（空文字）を定義しておけば、デプロイ時に実際の値が注入されます。
+
+=== クラスタ情報
+
+[cols="1,2",options="header"]
+|===
+| 変数 | 説明
+
+| `deployer.domain`
+| クラスタの Ingress ドメイン（例: `apps.cluster-abc123.example.com`）
+
+| `deployer.apiUrl`
+| クラスタの API URL（例: `https://api.cluster-abc123.example.com:6443`）
+
+| `guid`
+| 環境ごとの一意の識別子（例: `abc123`）
+
+| `user.count`
+| ワークショップのユーザー数
+|===
+
+=== 認証情報
+
+[cols="1,2",options="header"]
+|===
+| 変数 | 説明
+
+| `openshift_console_url`
+| OpenShift コンソール URL
+
+| `bastion_public_hostname`
+| Bastion ホスト名
+
+| `bastion_ssh_user_name`
+| SSH ユーザー名
+
+| `bastion_ssh_password`
+| SSH パスワード
+|===
+
+=== ベースワークロードフラグ
+
+[cols="1,2",options="header"]
+|===
+| 変数 | 説明
+
+| `bases.virt`
+| OpenShift Virtualization が有効か（true/false、CNV のみ）
+
+| `bases.rhoai`
+| OpenShift AI が有効か（true/false）
+
+| `bases.aap`
+| Ansible Automation Platform が有効か（true/false）
+|===
+
+=== AI/LLM 連携（LiteMaaS 有効時）
+
+[cols="1,2",options="header"]
+|===
+| 変数 | 説明
+
+| `litemaas.apiUrl`
+| LiteMaaS API エンドポイント
+
+| `litemaas.apiKey`
+| LiteMaaS API キー（一時的、3〜30日）
+
+| `litemaas.model`
+| 選択された AI モデル名
+|===
+
+=== Showroom 用変数（antora.yml で使用）
+
+Showroom コンテンツでは `%変数名%` 形式で参照します。`antora.yml` の `asciidoc.attributes` で定義してください。
+
+[cols="1,2",options="header"]
+|===
+| 変数 | 説明
+
+| `%guid%`
+| 環境 ID
+
+| `%openshift_console_url%`
+| コンソール URL
+
+| `%openshift_cluster_ingress_domain%`
+| Ingress ドメイン
+
+| `%bastion_ssh_user_name%`
+| SSH ユーザー名
+
+| `%bastion_ssh_password%`
+| SSH パスワード
+|===
+
+TIP: `bases.*` フラグを使えば、ベースワークロードの有無に応じてテンプレートを条件分岐できます。`{{- if .Values.bases.rhoai }}...{{- end }}`
+
 == テンプレートの種類と違い
 
 [cols="1,2,1",options="header"]

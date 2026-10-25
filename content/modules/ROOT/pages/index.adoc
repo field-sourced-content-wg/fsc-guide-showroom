@@ -26,6 +26,16 @@ FSC の最大の特徴は、**一度作ったデモ環境が Git リポジトリ
 * FSC を使ったコンテンツ開発を引き継ぐメンバー
 * Red Hat Demo Platform (RHDP) 上でワークショップを提供したいチーム
 
+== クイックスタート（初めての方へ）
+
+初めて FSC を使う場合は、以下の手順で始めてください:
+
+. **環境構築ガイドを読む**: https://github.com/field-sourced-content-wg/fsc-guide-env/blob/main/helm/README.md[fsc-guide-env README^] に RHDP オーダー手順が書かれています
+. **RHDP で環境をオーダー**: README の手順に従い、GitHub PAT を用意して「Field Sourced Content - OpenShift Base」をオーダー
+. **Showroom でこのガイドを閲覧**: 環境が起動すると Showroom にこのガイドが表示されます。「デモを作ってみよう」セクションの手順に沿って進めてください
+
+TIP: RHDP 環境がなくても、このガイドの HTML 版をダウンロードして事前に読むことができます: https://github.com/field-sourced-content-wg/fsc-guide-showroom/raw/main/fsc-guide-html.zip[HTML zip^]
+
 == 前提知識
 
 * OpenShift / Kubernetes の基本操作

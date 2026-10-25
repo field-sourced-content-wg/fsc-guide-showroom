@@ -212,13 +212,44 @@ gh api repos/rhpds/showroom-deployer/contents/charts/showroom-single-pod/values.
 | リポジトリ | Visibility | 理由
 
 | コンテンツ（Showroom）
-| **public 必須**
+| **public 必須**（通常）
 | Showroom の git-cloner が認証なしで clone するため
 
 | 環境定義（Helm）
 | private 可
 | RHDP オーダー時に PAT で認証
 |===
+
+==== 完全 private リポジトリでの運用
+
+コンテンツリポジトリも private にしたい場合は、ArgoCD にリポジトリの認証情報を登録する方法があります。
+
+. ArgoCD UI → Settings → Repositories → **CONNECT REPO**
+. 以下を設定:
++
+[cols="1,2",options="header"]
+|===
+| 項目 | 設定値
+
+| Connection method
+| VIA HTTPS または VIA SSH
+
+| Repository URL
+| `https://github.com/yourorg/your-private-showroom.git`
+
+| Username（HTTPS の場合）
+| GitHub ユーザー名
+
+| Password（HTTPS の場合）
+| GitHub PAT（`repo` スコープ）
+
+| SSH private key（SSH の場合）
+| SSH 秘密鍵
+|===
+
+. ArgoCD がリポジトリにアクセスできるようになり、Showroom の git-cloner とは別に ArgoCD が認証付きで clone できます
+
+IMPORTANT: この方法は ArgoCD が管理するリポジトリ（Helm チャート）には有効ですが、Showroom の git-cloner は ArgoCD の認証情報を使いません。Showroom コンテンツリポジトリを完全 private にするには、git-cloner のカスタマイズまたは認証情報の Secret マウントが必要です（現時点では git-cloner は認証非対応）。
 
 === Web Terminal の設定
 
@@ -279,6 +310,45 @@ TIP: これにより RHDP を参加者ごとに個別に払い出す必要がな
 |===
 
 IMPORTANT: 使用していない環境を放置すると、クラウドリソースのコストが発生し続けます。
+
+=== Podman によるローカル開発
+
+RHDP を使わずに、ローカル環境で Showroom コンテンツのプレビューや Helm チャートの検証ができます。
+
+==== Showroom コンテンツのプレビュー
+
+[source,bash]
+----
+cd your-showroom-repo
+
+# Antora でビルド
+podman run --name antora-preview \
+  -v "$(pwd):/antora:Z" -w /antora \
+  quay.io/rhpds/antora:v1.3.0
+
+# ビルド結果をコピー
+mkdir -p www
+podman cp antora-preview:/output/. ./www/
+podman rm antora-preview
+
+# ブラウザで確認
+open www/modules/index.html
+----
+
+==== Helm チャートの検証
+
+[source,bash]
+----
+cd your-env-repo/helm
+
+# テンプレートのレンダリング確認
+helm template test .
+
+# 構文チェック
+helm lint .
+----
+
+TIP: RHDP でデプロイする前にローカルで検証しておくと、デプロイエラーの発見が早くなります。
 
 === 引き継ぎチェックリスト
 

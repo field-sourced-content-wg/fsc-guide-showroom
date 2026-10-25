@@ -1,0 +1,27 @@
+name: Antora Build Test
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/rhpds/antora:v1.3.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Antora site
+        run: antora --stacktrace site.yml
+
+      - name: Verify output
+        run: |
+          if [ ! -f /output/modules/index.html ]; then
+            echo "ERROR: index.html not found in output"
+            exit 1
+          fi
+          echo "Build successful: $(find /output -name '*.html' | wc -l) HTML files generated"

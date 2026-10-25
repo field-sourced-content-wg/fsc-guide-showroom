@@ -123,6 +123,8 @@ ENDOFFILE
 
 新しいコンポーネントを ArgoCD が認識するように、`templates/applications.yaml` に Application 定義を追加します。
 
+NOTE: `templates/applications.yaml` は FSC テンプレートに最初から含まれています。既存の内容に追記する形で作業してください。ファイルが存在しない場合は、テンプレートの Fork が正しく行われていない可能性があります。
+
 === 手順
 
 . `templates/applications.yaml` を開きます:

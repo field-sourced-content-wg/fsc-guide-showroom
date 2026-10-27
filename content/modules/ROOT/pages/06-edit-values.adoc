@@ -309,6 +309,14 @@ data:
           </table>
         </div>
         <div class="card">
+          <h2>RHDP が自動注入した値（litemaas）</h2>
+          <table>
+            <tr><th>API URL</th><td>{{ .Values.litemaas.apiUrl | default "(未設定)" }}</td></tr>
+            <tr><th>API Key</th><td>{{ .Values.litemaas.apiKey | default "(未設定)" }}</td></tr>
+            <tr><th>Model</th><td>{{ .Values.litemaas.model | default "(未設定)" }}</td></tr>
+          </table>
+        </div>
+        <div class="card">
           <h2>PostgreSQL 接続情報（values.yaml で設定）</h2>
           <table>
             <tr><th>クラスタ名</th><td>{{ .Values.demo.postgres.name }}</td></tr>
@@ -330,7 +338,8 @@ data:
             <p>このページの内容は、すべて <code>values.yaml</code> から生成されています:</p>
             <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
               <li><strong>タイトル・メッセージ・テーマカラー</strong> — 作者が <code>values.yaml</code> で設定</li>
-              <li><strong>クラスタドメイン・API URL</strong> — RHDP がデプロイ時に自動注入</li>
+              <li><strong>クラスタドメイン・API URL</strong> — RHDP がデプロイ時に自動注入（deployer）</li>
+              <li><strong>LiteMaaS API</strong> — RHDP がデプロイ時に自動注入（litemaas）</li>
               <li><strong>PostgreSQL 情報</strong> — CNPG コンポーネントと連動</li>
             </ul>
             <p><code>values.yaml</code> を編集して Git push すると、ArgoCD が自動で反映します。</p>
@@ -444,6 +453,18 @@ vi values.yaml
       title: "CNPG Demo"
       instructions: "CNPG Operator で PostgreSQL を自動デプロイするデモです。"
 ----
++
+. ルートレベルに `litemaas` のデフォルト値を追加します:
++
+[source,yaml]
+----
+litemaas:
+  apiUrl: ""
+  apiKey: ""
+  model: ""
+----
++
+NOTE: `litemaas` の値は RHDP がカタログオーダー時に自動注入します。ローカル開発時は空文字のままで、HTML ページには「(未設定)」と表示されます。
 
 . `gitops.repoUrl` を自分のリポジトリ URL に変更します:
 +
@@ -462,7 +483,7 @@ gitops:
 vi templates/applications.yaml
 ----
 +
-hello-world の `valuesObject` を以下のように拡張します（`demo:` ブロックに追加、`deployer:` ブロックに `apiUrl` を追加）:
+hello-world の `valuesObject` を以下のように拡張します（`demo:` ブロックに追加、`deployer:` / `litemaas:` ブロックを追加）:
 +
 [source,yaml]
 ----
@@ -488,6 +509,10 @@ hello-world の `valuesObject` を以下のように拡張します（`demo:` �
         deployer:
           domain: {{ .Values.deployer.domain | quote }}
           apiUrl: {{ .Values.deployer.apiUrl | quote }}
+        litemaas:
+          apiUrl: {{ .Values.litemaas.apiUrl | default "" | quote }}
+          apiKey: {{ .Values.litemaas.apiKey | default "" | quote }}
+          model: {{ .Values.litemaas.model | default "" | quote }}
         showroom:
           enabled: {{ .Values.components.showroom.enabled }}
           namespace: {{ .Values.components.showroom.namespace }}

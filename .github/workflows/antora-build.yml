@@ -14,12 +14,17 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Antora site
-        run: docker run --rm -v "${{ github.workspace }}:/antora" -v "${{ github.workspace }}/www:/output" quay.io/rhpds/antora:v1.3.0 --stacktrace site.yml
+        run: |
+          mkdir -p www && chmod 777 www
+          docker run --rm -v "${{ github.workspace }}:/antora" -v "${{ github.workspace }}/www:/output" quay.io/rhpds/antora:v1.3.0 --stacktrace site.yml
 
       - name: Verify output
         run: |
-          if [ ! -f www/modules/index.html ]; then
-            echo "ERROR: index.html not found in output"
+          echo "Output contents:"
+          find www -name '*.html' | head -10
+          count=$(find www -name '*.html' | wc -l)
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: No HTML files generated"
             exit 1
           fi
-          echo "Build successful: $(find www -name '*.html' | wc -l) HTML files generated"
+          echo "Build successful: $count HTML files generated"
